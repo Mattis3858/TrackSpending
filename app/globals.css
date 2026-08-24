@@ -1,26 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans:
+    "Inter", "Noto Sans TC", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html {
+  font-family: var(--font-sans);
+  /* 手機上避免 input focus 自動放大 */
+  -webkit-text-size-adjust: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* 數字對齊用：金額欄位使用等寬數字，報表才不會跳動 */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

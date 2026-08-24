@@ -1,0 +1,158 @@
+// 個人記帳系統 — Prisma schema
+// 對應 SPEC.md 第 4 節。修改前請先讀 SPEC.md 第 5 節「核心設計決策」。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7：連線字串在 prisma.config.ts 設定，不在這裡
+}
+
+/// 支出分類的性質。互斥，取代原本 isSavings / isFixed 之類的多個布林旗標。
+/// 只對 EXPENSE 分類有意義，INCOME 分類一律留 VARIABLE 並忽略。
+enum CategoryKind {
+  VARIABLE // 變動消費：餐飲、交通、娛樂
+  FIXED // 固定消費：房租、水電瓦斯、保險。金額穩定、短期內砍不掉
+  SAVINGS // 儲蓄：錢存起來，仍然是現金，可以動用
+  INVESTMENT // 投資：錢投入股票 / ETF，離開現金部位
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Category {
+  id          String          @id @default(cuid())
+  userId      String // Supabase auth.users.id
+  name        String
+  type        TransactionType
+  isDefault   Boolean         @default(false) // 系統內建分類，不可刪除
+  kind        CategoryKind    @default(VARIABLE) // 見 SPEC 5.2 / 5.8
+  archived    Boolean         @default(false) // 軟刪除，見 SPEC 5.4
+  color       String? // 圓餅圖固定色，hex
+  sortOrder   Int             @default(0)
+  budgetLimit Decimal?        @db.Decimal(10, 2) // Phase 2 才做 UI
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  transactions Transaction[]
+  templates    RecurringTemplate[]
+
+  @@unique([userId, name, type]) // 防止 seed 重跑產生重複分類
+  @@index([userId, archived])
+}
+
+/// 使用者層級的設定值。單一使用者也用 userId 當主鍵，未來多人不必改結構。
+model UserSetting {
+  userId String @id
+
+  /// 開始記帳前手上已有的現金類資產（活存、定存、緊急備用金）。
+  /// 沒有這個值，緊急預備金月數會嚴重低估。見 SPEC 8.5
+  startingCash       Decimal   @default(0) @db.Decimal(12, 2)
+  /// 開始記帳前已投入的投資成本
+  startingInvestment Decimal   @default(0) @db.Decimal(12, 2)
+  /// 投資現值，由使用者手動更新（系統無法得知市價）
+  investmentValue    Decimal?  @db.Decimal(12, 2)
+  investmentValueAt  DateTime?
+
+  /// 月消費預算。沒設定時用「近期收入 x (1 - 目標儲蓄率)」推算
+  monthlyBudget     Decimal? @db.Decimal(10, 2)
+  /// 目標儲蓄率，0-100
+  targetSavingsRate Int?
+  /// 發薪日（每月幾號），給倒數用
+  payday            Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String // 例如：薪轉戶、儲蓄戶、現金
+  initialBalance Decimal  @default(0) @db.Decimal(12, 2)
+  archived       Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  fromTransactions Transaction[] @relation("fromAccount")
+  toTransactions   Transaction[] @relation("toAccount")
+
+  @@unique([userId, name])
+}
+
+model Transaction {
+  id     String          @id @default(cuid())
+  userId String
+  date   DateTime        @db.Date // 純日期，不帶時刻，避免時區錯月，見 SPEC 5.3
+  type   TransactionType
+  amount Decimal         @db.Decimal(10, 2) // 一律為正數，見 SPEC 5.5
+  note   String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  accountId   String? // Phase 2：TRANSFER 的轉出帳戶
+  account     Account? @relation("fromAccount", fields: [accountId], references: [id], onDelete: Restrict)
+  toAccountId String? // Phase 2：TRANSFER 的轉入帳戶
+  toAccount   Account? @relation("toAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+
+  importHash String? // Phase 2 CSV 匯入去重用
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  recurringRun RecurringRun?
+
+  @@unique([userId, importHash]) // Postgres 多筆 NULL 視為相異，不影響手動輸入
+  @@index([userId, date])
+  @@index([userId, type, date])
+  @@index([categoryId])
+}
+
+model RecurringTemplate {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  // 沒有 type 欄位：類型一律由 category.type 決定，避免兩邊不一致
+  amount     Decimal  @db.Decimal(10, 2)
+  dayOfMonth Int // 1-31，超過當月天數時 clamp 到該月最後一天，見 SPEC 5.6
+  note       String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  runs RecurringRun[]
+
+  @@index([userId, active])
+}
+
+// 記錄「某範本在某月已經產生過交易」，靠 unique 約束保證不會重複產生
+model RecurringRun {
+  id            String            @id @default(cuid())
+  templateId    String
+  template      RecurringTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  yearMonth     String // 格式固定 "2026-09"
+  transactionId String?           @unique
+  transaction   Transaction?      @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+
+  @@unique([templateId, yearMonth])
+}
+
+model NetWorthSnapshot {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  totalAssets Decimal  @db.Decimal(12, 2)
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, date])
+}

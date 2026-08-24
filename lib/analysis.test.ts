@@ -6,6 +6,7 @@ import {
   categoryDelta,
   monthPace,
   savingsBreakdown,
+  valuePortfolio,
   type MonthlyTotal,
 } from "./analysis";
 import { Decimal } from "./money";
@@ -328,5 +329,122 @@ describe("assetSummary — 投資報酬率", () => {
     });
     expect(a.unrealizedGain?.toFixed(0)).toBe("5000");
     expect(a.unrealizedGainRatio).toBeNull();
+  });
+});
+
+describe("valuePortfolio — 持股估值", () => {
+  const holdings = [
+    { symbol: "2330", name: "台積電", shares: "1000", cost: "2000000" },
+    { symbol: "0050", name: "元大台灣50", shares: "500", cost: "45000" },
+  ];
+  const quotes = new Map([
+    ["2330", { price: "2410", date: "2026-08-21" }],
+    ["0050", { price: "104.65", date: "2026-08-21" }],
+  ]);
+
+  it("市值 = 股數 x 價格，損益與報酬率跟著算出來", () => {
+    const p = valuePortfolio(holdings, quotes);
+    const tsmc = p.items.find((i) => i.symbol === "2330")!;
+
+    expect(tsmc.value?.toFixed(0)).toBe("2410000");
+    expect(tsmc.gain?.toFixed(0)).toBe("410000");
+    expect(tsmc.gainRatio).toBeCloseTo(0.205, 4);
+  });
+
+  it("合計正確", () => {
+    const p = valuePortfolio(holdings, quotes);
+    expect(p.totalCost.toFixed(0)).toBe("2045000");
+    expect(p.totalValue.toFixed(0)).toBe("2462325"); // 2,410,000 + 52,325
+    expect(p.totalGain.toFixed(0)).toBe("417325");
+    expect(p.missingQuotes).toBe(0);
+  });
+
+  it("依市值由大到小排序", () => {
+    expect(valuePortfolio(holdings, quotes).items.map((i) => i.symbol)).toEqual([
+      "2330",
+      "0050",
+    ]);
+  });
+
+  it("查不到報價的部位以成本計入，總資產不會因為 API 掛掉而暴跌", () => {
+    const p = valuePortfolio(holdings, new Map());
+
+    expect(p.missingQuotes).toBe(2);
+    expect(p.items[0].price).toBeNull();
+    expect(p.items[0].value).toBeNull();
+    // 市值退回成本，損益為 0，而不是把資產算成 0
+    expect(p.totalValue.toFixed(0)).toBe("2045000");
+    expect(p.totalGain.toFixed(0)).toBe("0");
+  });
+
+  it("只有部分查得到報價時，其餘仍以成本計入", () => {
+    const partial = new Map([["2330", { price: "2410", date: "2026-08-21" }]]);
+    const p = valuePortfolio(holdings, partial);
+
+    expect(p.missingQuotes).toBe(1);
+    expect(p.totalValue.toFixed(0)).toBe("2455000"); // 2,410,000 + 45,000（成本）
+  });
+
+  it("零股（小數股數）計算正確", () => {
+    const p = valuePortfolio(
+      [{ symbol: "2330", name: "台積電", shares: "13.5", cost: "30000" }],
+      quotes,
+    );
+    expect(p.totalValue.toFixed(2)).toBe("32535.00");
+  });
+
+  it("沒有持股時各項為 0，報酬率為 null 不會除以零", () => {
+    const p = valuePortfolio([], quotes);
+    expect(p.totalCost.toFixed(0)).toBe("0");
+    expect(p.totalGainRatio).toBeNull();
+    expect(p.quoteDate).toBeNull();
+  });
+
+  it("回報最新的報價日期", () => {
+    const mixed = new Map([
+      ["2330", { price: "2410", date: "2026-08-21" }],
+      ["0050", { price: "104.65", date: "2026-08-24" }],
+    ]);
+    expect(valuePortfolio(holdings, mixed).quoteDate).toBe("2026-08-24");
+  });
+});
+
+describe("assetSummary — 有持股明細時以持股為準", () => {
+  const base = {
+    startingCash: "152432",
+    startingInvestment: "455086",
+    investmentValue: "704975",
+    allTimeIncome: "50000",
+    allTimeConsumption: "30000",
+    allTimeInvestment: "20000",
+  };
+
+  it("傳入 portfolio 時，忽略手動的投資設定值", () => {
+    const a = assetSummary({
+      ...base,
+      portfolio: { cost: "2045000", value: "2462325" },
+    });
+
+    expect(a.investmentCost.toFixed(0)).toBe("2045000");
+    expect(a.investmentValue?.toFixed(0)).toBe("2462325");
+    // 持股成本已含記帳期間投入的錢，不可以再把 allTimeInvestment 加上去
+    expect(a.investmentCost.toFixed(0)).not.toBe("2065000");
+  });
+
+  it("現金的算法不受 portfolio 影響（投資的錢仍要從現金扣掉）", () => {
+    const withPortfolio = assetSummary({
+      ...base,
+      portfolio: { cost: "2045000", value: "2462325" },
+    });
+    const without = assetSummary(base);
+
+    expect(withPortfolio.cash.toFixed(0)).toBe(without.cash.toFixed(0));
+    expect(withPortfolio.cash.toFixed(0)).toBe("152432");
+  });
+
+  it("沒有持股時維持原本行為", () => {
+    const a = assetSummary(base);
+    expect(a.investmentCost.toFixed(0)).toBe("475086"); // 455,086 + 20,000
+    expect(a.investmentValue?.toFixed(0)).toBe("704975");
   });
 });

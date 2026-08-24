@@ -12,12 +12,13 @@ import {
 import { readYearMonth } from "@/lib/params";
 import { expenseByCategory, summarizeMonth } from "@/lib/reports";
 import {
-  assetSummary,
   averageMonthlyConsumption,
   budgetFromTarget,
   monthPace,
   savingsBreakdown,
 } from "@/lib/analysis";
+import { Suspense } from "react";
+import AssetsCard, { AssetsCardSkeleton } from "@/components/assets-card";
 import { ZERO, amountFormatter, formatPercent, money } from "@/lib/money";
 import { getHideAmounts } from "@/lib/preferences";
 import { setHideAmounts } from "./actions/preferences";
@@ -115,16 +116,6 @@ export default async function HomePage(props: PageProps<"/">) {
   });
 
   const avgConsumption = averageMonthlyConsumption(history, thisMonth);
-
-  const assets = assetSummary({
-    startingCash: setting.startingCash,
-    startingInvestment: setting.startingInvestment,
-    investmentValue: setting.investmentValue,
-    allTimeIncome: allTime.income,
-    allTimeConsumption: allTime.consumption,
-    allTimeInvestment: allTime.investment,
-    avgMonthlyConsumption: avgConsumption,
-  });
 
   const breakdown = savingsBreakdown({
     totalIncome: summary.totalIncome,
@@ -282,61 +273,21 @@ export default async function HomePage(props: PageProps<"/">) {
             </div>
           </Card>
 
-          {/* 資產 */}
-          <Card
-            title="資產"
-            note={
-              assets.emergencyMonths === null
-                ? "累積一個月的消費紀錄後，就能算出緊急預備金可以撐多久"
-                : `緊急預備金只算現金，不含投資 — 真的需要用錢時不該被迫在低點賣股`
-            }
-          >
-            <div className="grid grid-cols-2 gap-4">
-              <Stat label="現金" value={fmt(assets.cash)} />
-              <Stat
-                label="緊急預備金"
-                value={
-                  assets.emergencyMonths === null
-                    ? "—"
-                    : `${assets.emergencyMonths.toFixed(1)} 個月`
-                }
-                tone={
-                  assets.emergencyMonths !== null && assets.emergencyMonths < 3
-                    ? "text-amber-600"
-                    : "text-slate-900"
-                }
-              />
-              <Stat
-                label="投資"
-                value={fmt(assets.investmentValue ?? assets.investmentCost)}
-              />
-              <Stat label="總資產" value={fmt(assets.netWorth)} />
-            </div>
-
-            {assets.unrealizedGain && (
-              <p className="mt-3 text-xs text-slate-400">
-                投資成本 {fmt(assets.investmentCost)}，未實現損益{" "}
-                <span
-                  className={
-                    assets.unrealizedGain.isNegative()
-                      ? "text-red-600"
-                      : "text-emerald-600"
-                  }
-                >
-                  {assets.unrealizedGain.isNegative() ? "" : "+"}
-                  {fmt(assets.unrealizedGain)}
-                  {assets.unrealizedGainRatio !== null && (
-                    <>
-                      {" ("}
-                      {assets.unrealizedGainRatio > 0 ? "+" : ""}
-                      {formatPercent(assets.unrealizedGainRatio, 1)}
-                      {")"}
-                    </>
-                  )}
-                </span>
-              </p>
-            )}
-          </Card>
+          {/* 資產：唯一需要外部報價 API 的區塊，串流載入避免拖慢整頁 */}
+          <Suspense fallback={<AssetsCardSkeleton />}>
+            <AssetsCard
+              hidden={hidden}
+              startingCash={setting.startingCash}
+              startingInvestment={setting.startingInvestment}
+              investmentValue={setting.investmentValue}
+              allTimeIncome={allTime.income.toFixed(2)}
+              allTimeConsumption={allTime.consumption.toFixed(2)}
+              allTimeInvestment={allTime.investment.toFixed(2)}
+              avgMonthlyConsumption={
+                avgConsumption ? avgConsumption.toFixed(2) : null
+              }
+            />
+          </Suspense>
 
           {/* 分類圓餅圖 */}
           <Card title="消費分類">

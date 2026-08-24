@@ -275,3 +275,37 @@ export async function getUserSetting(userId: string): Promise<UserSettingDTO> {
     payday: row.payday,
   };
 }
+
+// ───────────────────────────── 持股
+
+export type HoldingDTO = {
+  id: string;
+  symbol: string;
+  name: string;
+  market: "TWSE" | "TPEX";
+  shares: string;
+  cost: string;
+  note: string | null;
+};
+
+export async function getHoldings(userId: string): Promise<HoldingDTO[]> {
+  const rows = await prisma.holding.findMany({
+    where: { userId, archived: false },
+    select: {
+      id: true,
+      symbol: true,
+      name: true,
+      market: true,
+      shares: true,
+      cost: true,
+      note: true,
+    },
+    orderBy: [{ sortOrder: "asc" }, { symbol: "asc" }],
+  });
+
+  return rows.map((r) => ({
+    ...r,
+    shares: r.shares.toString(),
+    cost: toAmountString(r.cost),
+  }));
+}

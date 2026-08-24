@@ -1,6 +1,8 @@
 import { prisma } from "../lib/prisma";
-import { getFrequentCategoryIds, getTransactionsForMonth } from "../lib/queries";
+import { getFrequentCategoryIds, getHoldings, getTransactionsForMonth } from "../lib/queries";
+import { fetchQuotes } from "../lib/quotes";
 import { summarizeMonth, expenseByCategory } from "../lib/reports";
+import { valuePortfolio } from "../lib/analysis";
 import { toDbDate } from "../lib/date";
 import { formatTWD, formatPercent } from "../lib/money";
 
@@ -64,6 +66,35 @@ async function main() {
     const groupByOk = Array.isArray(frequent);
     results.push(["常用分類 groupBy 查詢可執行", groupByOk ? "PASS" : "FAIL", ""]);
     console.log((groupByOk ? "✅" : "❌") + " 常用分類 groupBy 查詢可執行  → 回傳 " + frequent.length + " 個分類");
+
+    // ── 持股 + 真實報價 API 的端到端驗證
+    const h = await prisma.holding.create({
+      data: { userId, symbol: "__VERIFY__", name: "驗證用", shares: "1000", cost: "2000000" },
+    });
+    try {
+      const book = await fetchQuotes();
+      const quoteOk = book.quotes.size > 500;
+      results.push(["報價 API 可用", quoteOk ? "PASS" : "FAIL", ""]);
+      console.log((quoteOk ? "✅" : "❌") + " 報價 API 可用  → " + book.quotes.size + " 檔，失敗來源 " + (book.failed.join("/") || "無"));
+
+      const tsmc = book.quotes.get("2330");
+      console.log((tsmc ? "✅" : "❌") + " 2330 查得到  → " + (tsmc ? tsmc.name + " " + tsmc.price.toFixed(2) + " (" + tsmc.date + ")" : "查不到"));
+      results.push(["2330 查得到報價", tsmc ? "PASS" : "FAIL", ""]);
+
+      const rows = await getHoldings(userId);
+      const port = valuePortfolio(rows, book.quotes);
+      const fallbackOk = port.totalValue.toFixed(0) === "2000000";
+      results.push(["查無報價的部位以成本計入", fallbackOk ? "PASS" : "FAIL", ""]);
+      console.log((fallbackOk ? "✅" : "❌") + " 查無報價的部位以成本計入  → 市值 " + port.totalValue.toFixed(0) + "，missingQuotes=" + port.missingQuotes);
+
+      if (tsmc) {
+        const sim = valuePortfolio([{ symbol: "2330", name: "台積電", shares: "1000", cost: "2000000" }], book.quotes);
+        console.log("ℹ  用真實報價試算 1000 股台積電：市值 " + sim.totalValue.toFixed(0) + "，損益 " + sim.totalGain.toFixed(0));
+      }
+    } finally {
+      await prisma.holding.delete({ where: { id: h.id } });
+      console.log("🧹 已清除驗證用持股");
+    }
 
     console.log(`\n整體：${results.every((r) => r[1] === "PASS") ? "全部通過" : "有失敗項目"}`);
   } finally {

@@ -20,6 +20,12 @@ enum CategoryKind {
   INVESTMENT // 投資：錢投入股票 / ETF，離開現金部位
 }
 
+/// 股票掛牌的市場，決定要去哪個公開 API 抓報價
+enum Market {
+  TWSE // 上市（證交所）
+  TPEX // 上櫃（櫃買中心）
+}
+
 enum TransactionType {
   INCOME
   EXPENSE
@@ -144,6 +150,31 @@ model RecurringRun {
   createdAt     DateTime          @default(now())
 
   @@unique([templateId, yearMonth])
+}
+
+/// 持股明細。有了它就能自動算投資現值，不必手動維護 UserSetting.investmentValue。
+/// 成本由使用者維護（買賣時更新），現值由公開報價 API 即時計算。
+model Holding {
+  id     String @id @default(cuid())
+  userId String
+
+  symbol String /// 股票代號，例如 2330
+  name   String /// 名稱，新增時由報價 API 帶入，可自行修改
+  market Market @default(TWSE)
+
+  /// 股數，允許零股所以留小數位
+  shares Decimal @db.Decimal(14, 4)
+  /// 累計投入成本（總額，不是單價）
+  cost   Decimal @db.Decimal(12, 2)
+
+  note      String?
+  archived  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, symbol])
+  @@index([userId, archived])
 }
 
 model NetWorthSnapshot {

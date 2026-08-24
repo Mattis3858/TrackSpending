@@ -121,7 +121,7 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">投資現值</h2>
           <p className="mt-0.5 text-xs text-slate-400">
-            系統無法得知市價，這個要你自己更新（一季看一次就夠）。留空的話總資產會用成本計算。
+            登錄「持股」之後這裡就不用管了，系統會自動用公開報價算市值。沒有持股紀錄時才會用到這個欄位。
           </p>
         </div>
 

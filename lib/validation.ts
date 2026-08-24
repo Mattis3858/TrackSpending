@@ -90,3 +90,49 @@ export const settingsInputSchema = z.object({
 });
 
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
+
+/** 股數：允許到小數第 4 位（零股） */
+const SHARES_RE = /^[0-9]+([.][0-9]{1,4})?$/;
+
+export const holdingInputSchema = z.object({
+  symbol: z
+    .string()
+    .trim()
+    .min(1, "請輸入股票代號")
+    .max(10, "股票代號太長")
+    .regex(/^[0-9A-Za-z]+$/, "股票代號只能是英數字"),
+  /** 留空時由報價 API 自動帶入 */
+  name: z.string().trim().max(30, "名稱最多 30 字").optional(),
+  market: z.enum(["TWSE", "TPEX"]).optional(),
+  shares: z.string().superRefine((raw, ctx) => {
+    const v = raw.trim();
+    if (!v) {
+      ctx.addIssue({ code: "custom", message: "請輸入股數" });
+      return;
+    }
+    if (!SHARES_RE.test(v)) {
+      ctx.addIssue({ code: "custom", message: "股數只能是數字，最多四位小數" });
+      return;
+    }
+    if (!money(v).greaterThan(0)) {
+      ctx.addIssue({ code: "custom", message: "股數必須大於 0" });
+    }
+  }),
+  cost: z.string().superRefine((raw, ctx) => {
+    const v = raw.trim();
+    if (!v) {
+      ctx.addIssue({ code: "custom", message: "請輸入成本" });
+      return;
+    }
+    if (!AMOUNT_RE.test(v)) {
+      ctx.addIssue({ code: "custom", message: "成本只能是數字，最多兩位小數" });
+      return;
+    }
+    if (!money(v).greaterThan(0)) {
+      ctx.addIssue({ code: "custom", message: "成本必須大於 0" });
+    }
+  }),
+  note: z.string().max(100, "備註最多 100 字").optional(),
+});
+
+export type HoldingInputForm = z.infer<typeof holdingInputSchema>;

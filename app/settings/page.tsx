@@ -27,13 +27,27 @@ export default async function SettingsPage() {
             <SettingsForm setting={setting} onSaveAction={save} />
           </div>
 
-          <Link
-            href="/settings/categories"
-            className="mt-6 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-base hover:bg-slate-50"
-          >
-            <span>分類管理</span>
-            <span className="text-slate-400">›</span>
-          </Link>
+          <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <Link
+              href="/settings/holdings"
+              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+            >
+              <span>
+                持股
+                <span className="block text-xs text-slate-400">
+                  登錄後投資現值自動更新
+                </span>
+              </span>
+              <span className="text-slate-400">›</span>
+            </Link>
+            <Link
+              href="/settings/categories"
+              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+            >
+              <span>分類管理</span>
+              <span className="text-slate-400">›</span>
+            </Link>
+          </div>
         </div>
       </main>
       <BottomNav />

@@ -136,6 +136,12 @@ export function assetSummary(input: {
   allTimeInvestment: MoneyInput;
   /** 月均消費，用來算緊急預備金月數 */
   avgMonthlyConsumption?: MoneyInput | null;
+  /**
+   * 有記錄持股明細時，投資部位改用持股的成本與市值。
+   * 傳了這個就會忽略 startingInvestment / investmentValue，
+   * 也不會再把 allTimeInvestment 加進成本（持股成本本身已經包含了）。
+   */
+  portfolio?: { cost: MoneyInput; value: MoneyInput } | null;
 }): AssetSummary {
   const income = money(input.allTimeIncome);
   const consumption = money(input.allTimeConsumption);
@@ -144,10 +150,16 @@ export function assetSummary(input: {
   // 存下來的錢 = 收入 − 消費。這個算法不依賴使用者有沒有乖乖記「儲蓄」那筆交易，
   // 錢只要沒花掉就算存下來了。其中投入投資的部分要扣掉，因為它已經不是現金。
   const cash = money(input.startingCash).plus(income).minus(consumption).minus(invested);
-  const investmentCost = money(input.startingInvestment).plus(invested);
 
-  const investmentValue =
-    input.investmentValue === null || input.investmentValue === undefined
+  // 有持股明細就以它為準；沒有才退回手動維護的設定值
+  const usePortfolio = Boolean(input.portfolio);
+  const investmentCost = usePortfolio
+    ? money(input.portfolio!.cost)
+    : money(input.startingInvestment).plus(invested);
+
+  const investmentValue = usePortfolio
+    ? money(input.portfolio!.value)
+    : input.investmentValue === null || input.investmentValue === undefined
       ? null
       : money(input.investmentValue);
 
@@ -288,4 +300,101 @@ export function categoryDelta(
   }
 
   return items.sort((a, b) => b.delta.abs().comparedTo(a.delta.abs()));
+}
+
+// ───────────────────────────── 持股估值
+
+export type HoldingInput = {
+  symbol: string;
+  name: string;
+  shares: MoneyInput;
+  /** 累計投入成本（總額） */
+  cost: MoneyInput;
+};
+
+/** 只需要價格與日期，不必把整個 Quote 型別帶進純函式層 */
+export type QuoteLike = { price: MoneyInput; date: string };
+
+export type HoldingValuation = {
+  symbol: string;
+  name: string;
+  shares: Decimal;
+  cost: Decimal;
+  /** 查不到報價時為 null，不要用 0 冒充 */
+  price: Decimal | null;
+  /** 市值 = 股數 x 價格 */
+  value: Decimal | null;
+  gain: Decimal | null;
+  gainRatio: number | null;
+  quoteDate: string | null;
+};
+
+export type PortfolioSummary = {
+  items: HoldingValuation[];
+  totalCost: Decimal;
+  /**
+   * 市值合計。查不到報價的部位**以成本計入**，
+   * 否則總資產會因為外部 API 出問題而憑空縮水。
+   */
+  totalValue: Decimal;
+  totalGain: Decimal;
+  totalGainRatio: number | null;
+  /** 有幾檔查不到報價，UI 要據此提示 */
+  missingQuotes: number;
+  /** 這批報價的最新日期 */
+  quoteDate: string | null;
+};
+
+export function valuePortfolio(
+  holdings: HoldingInput[],
+  quotes: Map<string, QuoteLike>,
+): PortfolioSummary {
+  const items: HoldingValuation[] = holdings.map((h) => {
+    const shares = money(h.shares);
+    const cost = money(h.cost);
+    const quote = quotes.get(h.symbol);
+    const price = quote ? money(quote.price) : null;
+    const value = price ? shares.times(price) : null;
+    const gain = value ? value.minus(cost) : null;
+
+    return {
+      symbol: h.symbol,
+      name: h.name,
+      shares,
+      cost,
+      price,
+      value,
+      gain,
+      gainRatio:
+        gain && cost.greaterThan(0) ? gain.dividedBy(cost).toNumber() : null,
+      quoteDate: quote?.date ?? null,
+    };
+  });
+
+  const totalCost = items.reduce<Decimal>((a, i) => a.plus(i.cost), ZERO);
+  // 沒有報價的部位以成本計入，總資產才不會因為 API 失敗而暴跌
+  const totalValue = items.reduce<Decimal>(
+    (a, i) => a.plus(i.value ?? i.cost),
+    ZERO,
+  );
+  const totalGain = totalValue.minus(totalCost);
+
+  const dates = items
+    .map((i) => i.quoteDate)
+    .filter((d): d is string => d !== null)
+    .sort();
+
+  return {
+    items: [...items].sort((a, b) =>
+      (b.value ?? b.cost).comparedTo(a.value ?? a.cost),
+    ),
+    totalCost,
+    totalValue,
+    totalGain,
+    totalGainRatio: totalCost.greaterThan(0)
+      ? totalGain.dividedBy(totalCost).toNumber()
+      : null,
+    missingQuotes: items.filter((i) => i.price === null).length,
+    quoteDate: dates.length > 0 ? dates[dates.length - 1] : null,
+  };
 }

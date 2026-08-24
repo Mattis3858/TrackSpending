@@ -43,3 +43,8 @@ next-env.d.ts
 /app/generated/prisma
 generated
 !.env.example
+
+# Prisma 自動安裝的 agent skills。.claude/ 有在用所以保留，
+# 這兩個是給別的 AI 工具的同份複本，跑 prisma init 會再產生，不需要版控。
+.agents/
+.windsurf/

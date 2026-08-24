@@ -24,6 +24,7 @@ enum CategoryKind {
 enum Market {
   TWSE // 上市（證交所）
   TPEX // 上櫃（櫃買中心）
+  US   // 美股（複委託），報價與成本以美元計，總計時換算台幣
 }
 
 enum TransactionType {

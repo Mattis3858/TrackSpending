@@ -1,6 +1,7 @@
 import { requireUserId } from "@/lib/auth";
 import { getHoldings } from "@/lib/queries";
 import { fetchQuotes } from "@/lib/quotes";
+import { fetchUsdToTwd } from "@/lib/fx";
 import { assetSummary, valuePortfolio } from "@/lib/analysis";
 import { amountFormatter, formatPercent } from "@/lib/money";
 import { SkeletonBar, SkeletonCard } from "./skeleton";
@@ -62,13 +63,26 @@ export default async function AssetsCard(props: Props) {
   const userId = await requireUserId();
   const fmt = amountFormatter(props.hidden);
 
-  const [holdings, book] = await Promise.all([
-    getHoldings(userId),
-    fetchQuotes(),
+  const holdings = await getHoldings(userId);
+  const usSymbols = holdings.filter((h) => h.market === "US").map((h) => h.symbol);
+
+  const [book, fx] = await Promise.all([
+    fetchQuotes(usSymbols),
+    usSymbols.length > 0 ? fetchUsdToTwd() : Promise.resolve(null),
   ]);
 
   // 有持股明細就用它算投資部位；沒有才退回設定頁手動維護的數值
-  const portfolio = holdings.length > 0 ? valuePortfolio(holdings, book.quotes) : null;
+  const portfolio =
+    holdings.length > 0
+      ? valuePortfolio(
+          holdings.map((h) => ({
+            ...h,
+            currency: h.market === "US" ? ("USD" as const) : ("TWD" as const),
+          })),
+          book.quotes,
+          fx?.usdToTwd ?? null,
+        )
+      : null;
 
   const assets = assetSummary({
     startingCash: props.startingCash,
@@ -141,9 +155,14 @@ export default async function AssetsCard(props: Props) {
           ? "累積一個月的消費紀錄後，就能算出緊急預備金可以撐多久。"
           : "緊急預備金只算現金，不含投資 — 真的需要用錢時不該被迫在低點賣股。"}
         {portfolio
-          ? portfolio.missingQuotes > 0
-            ? `　${portfolio.missingQuotes} 檔查無報價，以成本計入。`
-            : ""
+          ? [
+              portfolio.missingQuotes > 0
+                ? `　${portfolio.missingQuotes} 檔查無報價，以成本計入。`
+                : "",
+              portfolio.missingFx > 0
+                ? `　取不到美元匯率，${portfolio.missingFx} 檔美股未併入合計。`
+                : "",
+            ].join("")
           : "　投資現值目前是手動維護的，到「持股」頁登錄持股就會自動更新。"}
       </p>
     </section>

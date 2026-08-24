@@ -448,3 +448,77 @@ describe("assetSummary — 有持股明細時以持股為準", () => {
     expect(a.investmentValue?.toFixed(0)).toBe("704975");
   });
 });
+
+describe("valuePortfolio — 複委託（美股）多幣別", () => {
+  const mixed = [
+    { symbol: "2330", name: "台積電", shares: "1000", cost: "2000000" },
+    {
+      symbol: "VOO",
+      name: "Vanguard S&P 500 ETF",
+      shares: "2",
+      cost: "1426.64",
+      currency: "USD" as const,
+    },
+  ];
+  const quotes = new Map([
+    ["2330", { price: "2410", date: "2026-08-21" }],
+    ["VOO", { price: "702.61", date: "2026-08-24" }],
+  ]);
+  const FX = "31.798233";
+
+  it("美股部位以美元保留原值，另外換算台幣", () => {
+    const voo = valuePortfolio(mixed, quotes, FX).items.find(
+      (i) => i.symbol === "VOO",
+    )!;
+
+    expect(voo.currency).toBe("USD");
+    expect(voo.value?.toFixed(2)).toBe("1405.22"); // 2 x 702.61 美元
+    expect(voo.valueTwd?.toFixed(0)).toBe("44684"); // x 31.798233
+    expect(voo.costTwd?.toFixed(2)).toBe("45364.63");
+  });
+
+  it("損益用原幣別計算，報酬率不受匯率影響", () => {
+    const voo = valuePortfolio(mixed, quotes, FX).items.find(
+      (i) => i.symbol === "VOO",
+    )!;
+    expect(voo.gain?.toFixed(2)).toBe("-21.42"); // 1405.22 - 1426.64 美元
+    expect(voo.gainRatio).toBeCloseTo(-0.015, 3);
+  });
+
+  it("合計一律是台幣，台股與美股加總在一起", () => {
+    const p = valuePortfolio(mixed, quotes, FX);
+    expect(p.totalValue.toFixed(0)).toBe("2454684"); // 2,410,000 + 44,684
+    expect(p.totalCost.toFixed(0)).toBe("2045365"); // 2,000,000 + 45,365
+    expect(p.usdToTwd?.toFixed(6)).toBe("31.798233");
+    expect(p.missingFx).toBe(0);
+  });
+
+  it("取不到匯率時，美股部位不併入台幣合計但也不會亂猜", () => {
+    const p = valuePortfolio(mixed, quotes, null);
+
+    expect(p.missingFx).toBe(1);
+    // 只有台股計入合計，美元部位維持以美元顯示
+    expect(p.totalValue.toFixed(0)).toBe("2410000");
+    const voo = p.items.find((i) => i.symbol === "VOO")!;
+    expect(voo.valueTwd).toBeNull();
+    expect(voo.value?.toFixed(2)).toBe("1405.22"); // 原幣別的值仍在
+  });
+
+  it("純台股組合傳不傳匯率結果都一樣", () => {
+    const twOnly = [mixed[0]];
+    const withFx = valuePortfolio(twOnly, quotes, FX);
+    const withoutFx = valuePortfolio(twOnly, quotes, null);
+
+    expect(withFx.totalValue.toFixed(2)).toBe(withoutFx.totalValue.toFixed(2));
+    expect(withoutFx.missingFx).toBe(0);
+  });
+
+  it("美股查不到報價時，以成本換算台幣計入", () => {
+    const p = valuePortfolio(mixed, new Map([["2330", { price: "2410", date: "2026-08-21" }]]), FX);
+    const voo = p.items.find((i) => i.symbol === "VOO")!;
+
+    expect(voo.price).toBeNull();
+    expect(voo.valueTwd?.toFixed(2)).toBe("45364.63"); // 退回成本換算
+    expect(p.missingQuotes).toBe(1);
+  });
+});

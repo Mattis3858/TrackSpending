@@ -304,12 +304,16 @@ export function categoryDelta(
 
 // ───────────────────────────── 持股估值
 
+export type HoldingCurrency = "TWD" | "USD";
+
 export type HoldingInput = {
   symbol: string;
   name: string;
   shares: MoneyInput;
-  /** 累計投入成本（總額） */
+  /** 累計投入成本（總額，以該檔的計價幣別表示） */
   cost: MoneyInput;
+  /** 預設台幣；複委託標的是美元 */
+  currency?: HoldingCurrency;
 };
 
 /** 只需要價格與日期，不必把整個 Quote 型別帶進純函式層 */
@@ -318,19 +322,23 @@ export type QuoteLike = { price: MoneyInput; date: string };
 export type HoldingValuation = {
   symbol: string;
   name: string;
+  currency: HoldingCurrency;
   shares: Decimal;
+  /** 以下四項都是「原幣別」金額 */
   cost: Decimal;
-  /** 查不到報價時為 null，不要用 0 冒充 */
   price: Decimal | null;
-  /** 市值 = 股數 x 價格 */
   value: Decimal | null;
   gain: Decimal | null;
   gainRatio: number | null;
+  /** 換算成台幣後的金額；美元部位缺匯率時為 null */
+  costTwd: Decimal | null;
+  valueTwd: Decimal | null;
   quoteDate: string | null;
 };
 
 export type PortfolioSummary = {
   items: HoldingValuation[];
+  /** 以下合計一律是台幣 */
   totalCost: Decimal;
   /**
    * 市值合計。查不到報價的部位**以成本計入**，
@@ -341,15 +349,24 @@ export type PortfolioSummary = {
   totalGainRatio: number | null;
   /** 有幾檔查不到報價，UI 要據此提示 */
   missingQuotes: number;
+  /** 有幾檔因為缺匯率而無法併入台幣合計 */
+  missingFx: number;
   /** 這批報價的最新日期 */
   quoteDate: string | null;
+  /** 這次採用的美元匯率，沒有就是 null */
+  usdToTwd: Decimal | null;
 };
 
 export function valuePortfolio(
   holdings: HoldingInput[],
   quotes: Map<string, QuoteLike>,
+  usdToTwd?: MoneyInput | null,
 ): PortfolioSummary {
+  const fx =
+    usdToTwd === null || usdToTwd === undefined ? null : money(usdToTwd);
+
   const items: HoldingValuation[] = holdings.map((h) => {
+    const currency: HoldingCurrency = h.currency ?? "TWD";
     const shares = money(h.shares);
     const cost = money(h.cost);
     const quote = quotes.get(h.symbol);
@@ -357,9 +374,17 @@ export function valuePortfolio(
     const value = price ? shares.times(price) : null;
     const gain = value ? value.minus(cost) : null;
 
+    // 台幣部位直接用原值；美元部位要有匯率才換算得出來
+    const toTwd = (v: Decimal | null): Decimal | null => {
+      if (v === null) return null;
+      if (currency === "TWD") return v;
+      return fx ? v.times(fx) : null;
+    };
+
     return {
       symbol: h.symbol,
       name: h.name,
+      currency,
       shares,
       cost,
       price,
@@ -367,14 +392,19 @@ export function valuePortfolio(
       gain,
       gainRatio:
         gain && cost.greaterThan(0) ? gain.dividedBy(cost).toNumber() : null,
+      costTwd: toTwd(cost),
+      // 沒有報價時退回成本，總資產才不會因為 API 失敗而暴跌
+      valueTwd: toTwd(value ?? cost),
       quoteDate: quote?.date ?? null,
     };
   });
 
-  const totalCost = items.reduce<Decimal>((a, i) => a.plus(i.cost), ZERO);
-  // 沒有報價的部位以成本計入，總資產才不會因為 API 失敗而暴跌
+  const totalCost = items.reduce<Decimal>(
+    (a, i) => (i.costTwd ? a.plus(i.costTwd) : a),
+    ZERO,
+  );
   const totalValue = items.reduce<Decimal>(
-    (a, i) => a.plus(i.value ?? i.cost),
+    (a, i) => (i.valueTwd ? a.plus(i.valueTwd) : a),
     ZERO,
   );
   const totalGain = totalValue.minus(totalCost);
@@ -386,7 +416,7 @@ export function valuePortfolio(
 
   return {
     items: [...items].sort((a, b) =>
-      (b.value ?? b.cost).comparedTo(a.value ?? a.cost),
+      (b.valueTwd ?? ZERO).comparedTo(a.valueTwd ?? ZERO),
     ),
     totalCost,
     totalValue,
@@ -395,6 +425,8 @@ export function valuePortfolio(
       ? totalGain.dividedBy(totalCost).toNumber()
       : null,
     missingQuotes: items.filter((i) => i.price === null).length,
+    missingFx: items.filter((i) => i.costTwd === null).length,
     quoteDate: dates.length > 0 ? dates[dates.length - 1] : null,
+    usdToTwd: fx,
   };
 }

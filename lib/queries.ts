@@ -9,6 +9,7 @@ import { fromDbDate, monthRange, type YearMonth, type Ymd } from "@/lib/date";
 import { ZERO, money, toAmountString } from "@/lib/money";
 import type { TransactionType } from "@/generated/prisma/enums";
 import { isSetAsideKind, type CategoryKind } from "@/lib/category";
+import type { Market } from "@/generated/prisma/enums";
 import type { MonthlyTotal } from "@/lib/analysis";
 
 export type CategoryDTO = {
@@ -282,7 +283,7 @@ export type HoldingDTO = {
   id: string;
   symbol: string;
   name: string;
-  market: "TWSE" | "TPEX";
+  market: Market;
   shares: string;
   cost: string;
   note: string | null;

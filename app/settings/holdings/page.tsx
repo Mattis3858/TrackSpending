@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
 import { getHoldings } from "@/lib/queries";
 import { fetchQuotes } from "@/lib/quotes";
+import { fetchUsdToTwd } from "@/lib/fx";
 import { valuePortfolio } from "@/lib/analysis";
 import { formatPercent, formatTWD } from "@/lib/money";
 import {
@@ -18,8 +19,23 @@ export const metadata = { title: "持股 · 記帳" };
 export default async function HoldingsPage() {
   const userId = await requireUserId();
 
-  const [holdings, book] = await Promise.all([getHoldings(userId), fetchQuotes()]);
-  const portfolio = valuePortfolio(holdings, book.quotes);
+  const holdings = await getHoldings(userId);
+  const usSymbols = holdings.filter((h) => h.market === "US").map((h) => h.symbol);
+
+  // 有美股才需要匯率；沒有就不必打那支 API
+  const [book, fx] = await Promise.all([
+    fetchQuotes(usSymbols),
+    usSymbols.length > 0 ? fetchUsdToTwd() : Promise.resolve(null),
+  ]);
+
+  const portfolio = valuePortfolio(
+    holdings.map((h) => ({
+      ...h,
+      currency: h.market === "US" ? ("USD" as const) : ("TWD" as const),
+    })),
+    book.quotes,
+    fx?.usdToTwd ?? null,
+  );
 
   // Decimal 在伺服器端就轉成字串，不往 Client Component 傳（SPEC 5.5）
   const rows: HoldingRow[] = portfolio.items.map((item) => {
@@ -29,12 +45,14 @@ export default async function HoldingsPage() {
       symbol: item.symbol,
       name: item.name,
       market: source.market,
+      currency: item.currency,
       shares: item.shares.toString(),
       cost: item.cost.toFixed(2),
       price: item.price ? item.price.toFixed(2) : null,
       value: item.value ? item.value.toFixed(2) : null,
       gain: item.gain ? item.gain.toFixed(2) : null,
       gainRatio: item.gainRatio,
+      valueTwd: item.valueTwd ? item.valueTwd.toFixed(2) : null,
       quoteDate: item.quoteDate,
     };
   });
@@ -94,8 +112,17 @@ export default async function HoldingsPage() {
                   : "目前取不到報價，市值以成本顯示"}
                 {portfolio.missingQuotes > 0 &&
                   `　·　${portfolio.missingQuotes} 檔查無報價，以成本計入`}
+                {portfolio.usdToTwd &&
+                  `　·　美元匯率 ${portfolio.usdToTwd.toFixed(3)}`}
               </p>
             </section>
+          )}
+
+          {portfolio.missingFx > 0 && (
+            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              取不到美元匯率，{portfolio.missingFx} 檔美股部位暫時無法併入台幣合計，
+              下方仍以美元顯示。
+            </p>
           )}
 
           {book.failed.length > 0 && (

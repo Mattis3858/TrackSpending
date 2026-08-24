@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseTpexRows, parseTwseRows, rocDateToYmd } from "./quotes";
+import {
+  parseTpexRows,
+  parseTwseRows,
+  parseYahooChart,
+  rocDateToYmd,
+} from "./quotes";
 
 /**
  * 樣本直接取自兩個 API 的真實回應（2026-08-24 抓的），
@@ -103,5 +108,50 @@ describe("parseTpexRows（上櫃）", () => {
   it("壞資料不拋錯", () => {
     expect(parseTpexRows(undefined)).toEqual([]);
     expect(parseTpexRows([{ SecuritiesCompanyCode: "1234" }])).toEqual([]);
+  });
+});
+
+/** 真實 Yahoo 回應（2026-08-24 擷取，只保留用得到的欄位） */
+const YAHOO_SAMPLE = {
+  chart: {
+    result: [
+      {
+        meta: {
+          symbol: "VOO",
+          currency: "USD",
+          regularMarketPrice: 702.61,
+          chartPreviousClose: 703.71,
+          regularMarketTime: 1787590117,
+          longName: "Vanguard S&P 500 ETF",
+          shortName: "Vanguard S&P 500 ETF",
+        },
+      },
+    ],
+  },
+};
+
+describe("parseYahooChart（美股複委託）", () => {
+  it("解析真實樣本", () => {
+    const q = parseYahooChart(YAHOO_SAMPLE)!;
+    expect(q.symbol).toBe("VOO");
+    expect(q.name).toBe("Vanguard S&P 500 ETF");
+    expect(q.market).toBe("US");
+    expect(q.currency).toBe("USD");
+    expect(q.price.toFixed(2)).toBe("702.61");
+  });
+
+  it("沒有 previousClose 時用 chartPreviousClose 算漲跌", () => {
+    const q = parseYahooChart(YAHOO_SAMPLE)!;
+    expect(q.change.toFixed(2)).toBe("-1.10"); // 702.61 - 703.71
+  });
+
+  it("壞資料一律回 null，不拋錯（Yahoo 是非官方端點，隨時可能改）", () => {
+    expect(parseYahooChart(null)).toBeNull();
+    expect(parseYahooChart({})).toBeNull();
+    expect(parseYahooChart({ chart: { result: [] } })).toBeNull();
+    expect(parseYahooChart({ chart: { result: [{ meta: {} }] } })).toBeNull();
+    expect(
+      parseYahooChart({ chart: { result: [{ meta: { symbol: "X", regularMarketPrice: 0 } }] } }),
+    ).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { getFrequentCategoryIds, getHoldings, getTransactionsForMonth } from "../lib/queries";
-import { fetchQuotes } from "../lib/quotes";
+import { fetchQuotes, fetchUsQuotes } from "../lib/quotes";
+import { fetchUsdToTwd } from "../lib/fx";
 import { summarizeMonth, expenseByCategory } from "../lib/reports";
 import { valuePortfolio } from "../lib/analysis";
 import { toDbDate } from "../lib/date";
@@ -81,7 +82,8 @@ async function main() {
       console.log((tsmc ? "✅" : "❌") + " 2330 查得到  → " + (tsmc ? tsmc.name + " " + tsmc.price.toFixed(2) + " (" + tsmc.date + ")" : "查不到"));
       results.push(["2330 查得到報價", tsmc ? "PASS" : "FAIL", ""]);
 
-      const rows = await getHoldings(userId);
+      // 只取驗證用的那一筆，否則使用者的真實持股會混進來讓斷言失效
+      const rows = (await getHoldings(userId)).filter((r) => r.symbol === "__VERIFY__");
       const port = valuePortfolio(rows, book.quotes);
       const fallbackOk = port.totalValue.toFixed(0) === "2000000";
       results.push(["查無報價的部位以成本計入", fallbackOk ? "PASS" : "FAIL", ""]);
@@ -94,6 +96,27 @@ async function main() {
     } finally {
       await prisma.holding.delete({ where: { id: h.id } });
       console.log("🧹 已清除驗證用持股");
+    }
+
+    // ── 複委託（美股 + 匯率）
+    const us = await fetchUsQuotes(["VOO", "AAPL"]);
+    const usOk = us.length === 2;
+    results.push(["美股報價可用", usOk ? "PASS" : "FAIL", ""]);
+    console.log((usOk ? "✅" : "❌") + " 美股報價可用  → " + us.map(q => q.symbol + " " + q.price.toFixed(2) + " " + q.currency).join(", "));
+
+    const fx = await fetchUsdToTwd();
+    results.push(["美元匯率可用", fx ? "PASS" : "FAIL", ""]);
+    console.log((fx ? "✅" : "❌") + " 美元匯率可用  → " + (fx ? "USD/TWD " + fx.usdToTwd.toFixed(4) + " (" + fx.date + ")" : "取不到"));
+
+    if (us.length > 0 && fx) {
+      const q = new Map(us.map(x => [x.symbol, { price: x.price, date: x.date }]));
+      const sim = valuePortfolio(
+        [{ symbol: "VOO", name: "VOO", shares: "2", cost: "1426.64", currency: "US" + "D" as "USD" }],
+        q, fx.usdToTwd,
+      );
+      const twdOk = sim.missingFx === 0 && sim.totalValue.greaterThan(0);
+      results.push(["美股換算台幣", twdOk ? "PASS" : "FAIL", ""]);
+      console.log((twdOk ? "✅" : "❌") + " 美股換算台幣  → 2 股 VOO 市值 NT$ " + sim.totalValue.toFixed(0) + "（成本 NT$ " + sim.totalCost.toFixed(0) + "）");
     }
 
     console.log(`\n整體：${results.every((r) => r[1] === "PASS") ? "全部通過" : "有失敗項目"}`);

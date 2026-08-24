@@ -103,7 +103,7 @@ export const holdingInputSchema = z.object({
     .regex(/^[0-9A-Za-z]+$/, "股票代號只能是英數字"),
   /** 留空時由報價 API 自動帶入 */
   name: z.string().trim().max(30, "名稱最多 30 字").optional(),
-  market: z.enum(["TWSE", "TPEX"]).optional(),
+  market: z.enum(["TWSE", "TPEX", "US"]).optional(),
   shares: z.string().superRefine((raw, ctx) => {
     const v = raw.trim();
     if (!v) {

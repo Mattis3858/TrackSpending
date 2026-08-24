@@ -10,15 +10,26 @@ export type HoldingRow = {
   id: string;
   symbol: string;
   name: string;
-  market: "TWSE" | "TPEX";
+  market: string;
+  /** 原幣別。美股（複委託）是 USD，其餘是 TWD */
+  currency: "TWD" | "USD";
   shares: string;
+  /** 以下都是「原幣別」金額 */
   cost: string;
   price: string | null;
   value: string | null;
   gain: string | null;
   gainRatio: number | null;
+  /** 換算台幣後的市值；缺匯率時為 null */
+  valueTwd: string | null;
   quoteDate: string | null;
 };
+
+/** 美元部位用 US$ 標示，避免跟台幣金額混淆 */
+function formatMoney(value: string, currency: "TWD" | "USD"): string {
+  if (currency === "TWD") return formatTWD(value);
+  return "US$ " + formatTWD(value).replace("NT$ ", "");
+}
 
 type Props = {
   rows: HoldingRow[];
@@ -34,7 +45,12 @@ type Props = {
   onDelete: (id: string) => Promise<ActionResult>;
   onLookup: (
     symbol: string,
-  ) => Promise<{ name: string; market: "TWSE" | "TPEX"; price: string } | null>;
+  ) => Promise<{
+    name: string;
+    market: string;
+    price: string;
+    currency: string;
+  } | null>;
 };
 
 const inputClass =
@@ -86,7 +102,9 @@ export default function HoldingsManager({
     const found = await onLookup(s);
     setLooking(false);
     setPreview(
-      found ? `${found.name}　收盤 ${found.price}` : "查不到這個代號（仍可手動新增）",
+      found
+        ? `${found.name}　${found.currency === "USD" ? "US$" : ""}${found.price}${found.market === "US" ? "（美股複委託）" : ""}`
+        : "查不到這個代號（仍可手動新增）",
     );
   }
 
@@ -140,8 +158,7 @@ export default function HoldingsManager({
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
             onBlur={lookup}
-            placeholder="股票代號，例如 2330"
-            inputMode="numeric"
+            placeholder="股票代號，例如 2330 或 VOO"
             maxLength={10}
             className={inputClass}
           />
@@ -207,21 +224,29 @@ export default function HoldingsManager({
                       <span className="ml-2 text-slate-600">{row.name}</span>
                     </p>
                     <p className="tabular mt-0.5 text-xs text-slate-400">
-                      {row.shares} 股 · 成本 {formatTWD(row.cost)}
-                      {row.price && ` · 現價 ${row.price}`}
+                      {row.shares} 股 · 成本 {formatMoney(row.cost, row.currency)}
+                      {row.price &&
+                        ` · 現價 ${row.currency === "USD" ? "US$" : ""}${row.price}`}
                     </p>
                   </div>
 
                   <div className="shrink-0 text-right">
                     <p className="tabular text-sm font-semibold">
-                      {row.value ? formatTWD(row.value) : formatTWD(row.cost)}
+                      {row.valueTwd
+                        ? formatTWD(row.valueTwd)
+                        : formatMoney(row.value ?? row.cost, row.currency)}
                     </p>
+                    {row.currency === "USD" && row.valueTwd && (
+                      <p className="tabular text-xs text-slate-400">
+                        {formatMoney(row.value ?? row.cost, row.currency)}
+                      </p>
+                    )}
                     {row.gain !== null && row.gainRatio !== null ? (
                       <p
                         className={`tabular text-xs ${up ? "text-emerald-600" : "text-red-600"}`}
                       >
                         {up ? "+" : ""}
-                        {formatTWD(row.gain)}（{up ? "+" : ""}
+                        {formatMoney(row.gain, row.currency)}（{up ? "+" : ""}
                         {formatPercent(row.gainRatio, 1)}）
                       </p>
                     ) : (

@@ -14,6 +14,7 @@ import { requireUserId } from "@/lib/auth";
 import { toDbAmount } from "@/lib/money";
 import { lookupSymbol } from "@/lib/quotes";
 import { holdingInputSchema } from "@/lib/validation";
+import type { Market } from "@/generated/prisma/enums";
 import type { ActionResult } from "./transactions";
 
 function invalid(message: string): ActionResult {
@@ -121,7 +122,7 @@ export async function deleteHolding(id: string): Promise<ActionResult> {
 /** 新增表單用：輸入代號後即時帶出名稱 */
 export async function lookupHoldingSymbol(
   symbol: string,
-): Promise<{ name: string; market: "TWSE" | "TPEX"; price: string } | null> {
+): Promise<{ name: string; market: Market; price: string; currency: string } | null> {
   await requireUserId();
   const trimmed = symbol.trim().toUpperCase();
   if (!trimmed) return null;
@@ -133,5 +134,6 @@ export async function lookupHoldingSymbol(
     name: quote.name,
     market: quote.market,
     price: quote.price.toFixed(2),
+    currency: quote.currency,
   };
 }

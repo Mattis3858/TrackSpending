@@ -105,8 +105,16 @@ export function budgetFromTarget(
 // ───────────────────────────── 資產與緊急預備金
 
 export type AssetSummary = {
-  /** 隨時可動用的現金（含儲蓄，不含投資） */
+  /** 台幣現金（含儲蓄，不含投資） */
   cash: Decimal;
+  /** 美元現金（原幣別），例如複委託帳戶裡的餘額 */
+  cashUsd: Decimal;
+  /** 全部現金換算台幣後的合計；缺匯率時等於台幣現金 */
+  cashTotalTwd: Decimal;
+  /** 台股部位市值（台幣） */
+  investmentTwd: Decimal;
+  /** 美股部位市值（美元原幣別） */
+  investmentUsd: Decimal;
   /** 投資的累計投入成本 */
   investmentCost: Decimal;
   /** 投資現值，需要使用者手動更新；沒填就是 null */
@@ -136,12 +144,24 @@ export function assetSummary(input: {
   allTimeInvestment: MoneyInput;
   /** 月均消費，用來算緊急預備金月數 */
   avgMonthlyConsumption?: MoneyInput | null;
+  /** 美元現金（原幣別） */
+  cashUsd?: MoneyInput;
+  /** 美元匯率，用來把美元現金與美股併入台幣合計 */
+  usdToTwd?: MoneyInput | null;
   /**
    * 有記錄持股明細時，投資部位改用持股的成本與市值。
    * 傳了這個就會忽略 startingInvestment / investmentValue，
    * 也不會再把 allTimeInvestment 加進成本（持股成本本身已經包含了）。
+   * cost / value 是台幣合計；byCurrency 是分幣別的原幣金額。
    */
-  portfolio?: { cost: MoneyInput; value: MoneyInput } | null;
+  portfolio?: {
+    cost: MoneyInput;
+    value: MoneyInput;
+    byCurrency?: {
+      twd: { cost: MoneyInput; value: MoneyInput };
+      usd: { cost: MoneyInput; value: MoneyInput };
+    };
+  } | null;
 }): AssetSummary {
   const income = money(input.allTimeIncome);
   const consumption = money(input.allTimeConsumption);
@@ -168,12 +188,32 @@ export function assetSummary(input: {
       ? null
       : money(input.avgMonthlyConsumption);
 
+  const fx =
+    input.usdToTwd === null || input.usdToTwd === undefined
+      ? null
+      : money(input.usdToTwd);
+
+  const cashUsd = input.cashUsd === undefined ? ZERO : money(input.cashUsd);
+  // 缺匯率時不亂猜，美元現金就先不併入台幣合計
+  const cashTotalTwd = fx ? cash.plus(cashUsd.times(fx)) : cash;
+
+  const investmentTwd = input.portfolio?.byCurrency
+    ? money(input.portfolio.byCurrency.twd.value)
+    : (usePortfolio ? money(input.portfolio!.value) : (investmentValue ?? investmentCost));
+  const investmentUsd = input.portfolio?.byCurrency
+    ? money(input.portfolio.byCurrency.usd.value)
+    : ZERO;
+
   const unrealizedGain = investmentValue
     ? investmentValue.minus(investmentCost)
     : null;
 
   return {
     cash,
+    cashUsd,
+    cashTotalTwd,
+    investmentTwd,
+    investmentUsd,
     investmentCost,
     investmentValue,
     unrealizedGain,
@@ -181,9 +221,10 @@ export function assetSummary(input: {
       unrealizedGain && investmentCost.greaterThan(0)
         ? unrealizedGain.dividedBy(investmentCost).toNumber()
         : null,
-    netWorth: cash.plus(investmentValue ?? investmentCost),
+    netWorth: cashTotalTwd.plus(investmentValue ?? investmentCost),
+    // 美元現金同樣是隨時可動用的，要併進緊急預備金
     emergencyMonths:
-      avg && avg.greaterThan(0) ? cash.dividedBy(avg).toNumber() : null,
+      avg && avg.greaterThan(0) ? cashTotalTwd.dividedBy(avg).toNumber() : null,
   };
 }
 
@@ -355,6 +396,14 @@ export type PortfolioSummary = {
   quoteDate: string | null;
   /** 這次採用的美元匯率，沒有就是 null */
   usdToTwd: Decimal | null;
+  /**
+   * 依幣別的小計，金額是**原幣別**（台股台幣、美股美元），
+   * 給「資產要分台幣與美金顯示」用。
+   */
+  byCurrency: {
+    twd: { cost: Decimal; value: Decimal };
+    usd: { cost: Decimal; value: Decimal };
+  };
 };
 
 export function valuePortfolio(
@@ -414,6 +463,16 @@ export function valuePortfolio(
     .filter((d): d is string => d !== null)
     .sort();
 
+  // 分幣別小計用原幣別金額，不換算
+  const sumBy = (currency: HoldingCurrency) => {
+    const picked = items.filter((i) => i.currency === currency);
+    return {
+      cost: picked.reduce<Decimal>((a, i) => a.plus(i.cost), ZERO),
+      // 沒報價的部位退回成本，跟台幣合計的處理一致
+      value: picked.reduce<Decimal>((a, i) => a.plus(i.value ?? i.cost), ZERO),
+    };
+  };
+
   return {
     items: [...items].sort((a, b) =>
       (b.valueTwd ?? ZERO).comparedTo(a.valueTwd ?? ZERO),
@@ -428,5 +487,6 @@ export function valuePortfolio(
     missingFx: items.filter((i) => i.costTwd === null).length,
     quoteDate: dates.length > 0 ? dates[dates.length - 1] : null,
     usdToTwd: fx,
+    byCurrency: { twd: sumBy("TWD"), usd: sumBy("USD") },
   };
 }

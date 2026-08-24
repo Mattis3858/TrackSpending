@@ -77,6 +77,8 @@ function optionalMoneyField(label: string) {
 export const settingsInputSchema = z.object({
   /** 開始記帳前手上的現金（活存、定存、緊急備用金） */
   startingCash: optionalMoneyField("現金"),
+  /** 外幣現金（美元） */
+  cashUsd: optionalMoneyField("外幣現金"),
   /** 開始記帳前的投資成本 */
   startingInvestment: optionalMoneyField("投資成本"),
   /** 投資現值，手動更新 */

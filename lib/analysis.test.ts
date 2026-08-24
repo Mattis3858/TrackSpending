@@ -522,3 +522,69 @@ describe("valuePortfolio — 複委託（美股）多幣別", () => {
     expect(p.missingQuotes).toBe(1);
   });
 });
+
+describe("assetSummary — 現金與投資依幣別拆分", () => {
+  const base = {
+    startingCash: "152432",
+    startingInvestment: "0",
+    allTimeIncome: "0",
+    allTimeConsumption: "0",
+    allTimeInvestment: "0",
+  };
+  const FX = "31.798233";
+
+  it("台幣現金與美元現金分開保留，合計換算台幣", () => {
+    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: FX });
+
+    expect(a.cash.toFixed(0)).toBe("152432"); // 台幣部分不變
+    expect(a.cashUsd.toFixed(2)).toBe("10.35"); // 美元原幣保留
+    expect(a.cashTotalTwd.toFixed(2)).toBe("152761.11"); // 152,432 + 10.35 x 31.798233
+  });
+
+  it("緊急預備金用換算後的總現金（美元現金也是隨時可動用的）", () => {
+    const withUsd = assetSummary({
+      ...base,
+      cashUsd: "10.35",
+      usdToTwd: FX,
+      avgMonthlyConsumption: "30000",
+    });
+    const without = assetSummary({ ...base, avgMonthlyConsumption: "30000" });
+
+    expect(withUsd.emergencyMonths!).toBeGreaterThan(without.emergencyMonths!);
+  });
+
+  it("缺匯率時美元現金不併入合計，也不亂猜", () => {
+    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: null });
+
+    expect(a.cashUsd.toFixed(2)).toBe("10.35"); // 原幣仍在
+    expect(a.cashTotalTwd.toFixed(0)).toBe("152432"); // 但沒被加進去
+    expect(a.netWorth.toFixed(0)).toBe("152432");
+  });
+
+  it("投資依幣別拆成台股（台幣）與美股（美元）", () => {
+    const a = assetSummary({
+      ...base,
+      usdToTwd: FX,
+      portfolio: {
+        cost: "2045365",
+        value: "2454684",
+        byCurrency: {
+          twd: { cost: "2000000", value: "2410000" },
+          usd: { cost: "1426.64", value: "1405.22" },
+        },
+      },
+    });
+
+    expect(a.investmentTwd.toFixed(0)).toBe("2410000"); // 台股，台幣
+    expect(a.investmentUsd.toFixed(2)).toBe("1405.22"); // 美股，美元原幣
+    // 總資產仍是全部換算台幣
+    expect(a.netWorth.toFixed(0)).toBe("2607116"); // 152,432 + 2,454,684
+  });
+
+  it("沒有美元部位時，行為跟以前完全一樣", () => {
+    const a = assetSummary(base);
+    expect(a.cashUsd.toFixed(2)).toBe("0.00");
+    expect(a.cashTotalTwd.toFixed(0)).toBe(a.cash.toFixed(0));
+    expect(a.investmentUsd.toFixed(2)).toBe("0.00");
+  });
+});

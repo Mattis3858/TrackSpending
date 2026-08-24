@@ -45,6 +45,7 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
   const [saved, setSaved] = useState(false);
 
   const [startingCash, setStartingCash] = useState(trimAmount(setting.startingCash));
+  const [cashUsd, setCashUsd] = useState(trimAmount(setting.cashUsd));
   const [startingInvestment, setStartingInvestment] = useState(
     trimAmount(setting.startingInvestment),
   );
@@ -67,6 +68,7 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
     startTransition(async () => {
       const result = await onSaveAction({
         startingCash,
+        cashUsd,
         startingInvestment,
         investmentValue,
         monthlyBudget,
@@ -90,7 +92,7 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">開始記帳前的資產</h2>
           <p className="mt-0.5 text-xs text-slate-400">
-            系統只知道你開始記帳之後的收支。沒有這兩個數字，緊急預備金與總資產都會嚴重低估。
+            系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。
           </p>
         </div>
 
@@ -101,6 +103,17 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
             placeholder="0"
             value={startingCash}
             onChange={(e) => setStartingCash(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="外幣現金（美元）" hint="複委託帳戶裡還沒投入的美元餘額">
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={cashUsd}
+            onChange={(e) => setCashUsd(e.target.value)}
             className={inputClass}
           />
         </Field>

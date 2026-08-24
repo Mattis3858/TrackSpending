@@ -34,6 +34,7 @@ export async function saveSettings(raw: unknown): Promise<ActionResult> {
 
   const data = {
     startingCash: optionalAmount(input.startingCash) ?? "0",
+    cashUsd: optionalAmount(input.cashUsd) ?? "0",
     startingInvestment: optionalAmount(input.startingInvestment) ?? "0",
     investmentValue,
     ...(valueChanged

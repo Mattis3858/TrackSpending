@@ -278,6 +278,7 @@ export default async function HomePage(props: PageProps<"/">) {
             <AssetsCard
               hidden={hidden}
               startingCash={setting.startingCash}
+              cashUsd={setting.cashUsd}
               startingInvestment={setting.startingInvestment}
               investmentValue={setting.investmentValue}
               allTimeIncome={allTime.income.toFixed(2)}

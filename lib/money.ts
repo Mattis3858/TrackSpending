@@ -93,6 +93,18 @@ export function formatPercent(ratio: number | null, fractionDigits = 0): string 
 
 /** 金額遮罩後顯示的字樣。寬度固定，切換時版面不會大幅跳動。 */
 export const MASKED_AMOUNT = "NT$ ••••••";
+export const MASKED_USD = "US$ ••••••";
+
+/**
+ * 美元金額。一律顯示兩位小數——美股價格的小數位有意義，
+ * 而且跟台幣金額並排時，固定格式比較好辨認幣別。
+ */
+export function formatUSD(value: MoneyInput): string {
+  const d = money(value);
+  const negative = d.isNegative();
+  const [int, cents] = d.abs().toFixed(2, Decimal.ROUND_HALF_UP).split(".");
+  return `${negative ? "-" : ""}US$ ${group(int)}.${cents}`;
+}
 
 /**
  * 依「是否隱藏金額」產生格式化函式。
@@ -100,9 +112,15 @@ export const MASKED_AMOUNT = "NT$ ••••••";
  * 只遮絕對金額，百分比、天數、分類名稱維持顯示 —— 被瞄到「儲蓄率 40%」沒關係，
  * 被瞄到「總資產 NT$ 857,407」才有關係。
  */
-export function amountFormatter(hidden: boolean) {
+export function amountFormatter(
+  hidden: boolean,
+  currency: "TWD" | "USD" = "TWD",
+) {
   return (
     value: MoneyInput,
     options?: { alwaysCents?: boolean; sign?: boolean },
-  ): string => (hidden ? MASKED_AMOUNT : formatTWD(value, options));
+  ): string => {
+    if (hidden) return currency === "USD" ? MASKED_USD : MASKED_AMOUNT;
+    return currency === "USD" ? formatUSD(value) : formatTWD(value, options);
+  };
 }

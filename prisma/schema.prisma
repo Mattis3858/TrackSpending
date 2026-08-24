@@ -61,6 +61,9 @@ model UserSetting {
   /// 開始記帳前手上已有的現金類資產（活存、定存、緊急備用金）。
   /// 沒有這個值，緊急預備金月數會嚴重低估。見 SPEC 8.5
   startingCash       Decimal   @default(0) @db.Decimal(12, 2)
+  /// 外幣現金（美元），例如複委託帳戶裡還沒投入的餘額。
+  /// 交易紀錄都是台幣，所以這個值由使用者自己維護。
+  cashUsd            Decimal   @default(0) @db.Decimal(12, 2)
   /// 開始記帳前已投入的投資成本
   startingInvestment Decimal   @default(0) @db.Decimal(12, 2)
   /// 投資現值，由使用者手動更新（系統無法得知市價）

@@ -244,6 +244,7 @@ export function sumMonthlyTotals(history: MonthlyTotal[]) {
 
 export type UserSettingDTO = {
   startingCash: string;
+  cashUsd: string;
   startingInvestment: string;
   investmentValue: string | null;
   investmentValueAt: Date | null;
@@ -254,6 +255,7 @@ export type UserSettingDTO = {
 
 export const DEFAULT_USER_SETTING: UserSettingDTO = {
   startingCash: "0.00",
+  cashUsd: "0.00",
   startingInvestment: "0.00",
   investmentValue: null,
   investmentValueAt: null,
@@ -268,6 +270,7 @@ export async function getUserSetting(userId: string): Promise<UserSettingDTO> {
 
   return {
     startingCash: toAmountString(row.startingCash),
+    cashUsd: toAmountString(row.cashUsd),
     startingInvestment: toAmountString(row.startingInvestment),
     investmentValue: row.investmentValue ? toAmountString(row.investmentValue) : null,
     investmentValueAt: row.investmentValueAt,

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   Decimal,
   MASKED_AMOUNT,
+  MASKED_USD,
   amountFormatter,
+  formatUSD,
   formatPercent,
   formatTWD,
   isPositiveAmount,
@@ -127,5 +129,29 @@ describe("amountFormatter — 金額遮罩", () => {
     expect(fmt("-15000")).toBe(MASKED_AMOUNT);
     expect(fmt("0")).toBe(MASKED_AMOUNT);
     expect(fmt("-15000")).not.toContain("-");
+  });
+});
+
+describe("formatUSD", () => {
+  it("一律顯示兩位小數並加千分位", () => {
+    expect(formatUSD("1405.2")).toBe("US$ 1,405.20");
+    expect(formatUSD("10.35")).toBe("US$ 10.35");
+    expect(formatUSD("1426")).toBe("US$ 1,426.00");
+    expect(formatUSD("1234567.891")).toBe("US$ 1,234,567.89");
+  });
+
+  it("負數", () => {
+    expect(formatUSD("-21.42")).toBe("-US$ 21.42");
+  });
+
+  it("遮罩時美元用自己的字樣，不會顯示成 NT$", () => {
+    const fmt = amountFormatter(true, "USD");
+    expect(fmt("10.35")).toBe(MASKED_USD);
+    expect(fmt("10.35")).not.toContain("NT$");
+  });
+
+  it("amountFormatter 預設仍是台幣，既有呼叫端不受影響", () => {
+    expect(amountFormatter(false)("1234")).toBe("NT$ 1,234");
+    expect(amountFormatter(false, "USD")("1234")).toBe("US$ 1,234.00");
   });
 });

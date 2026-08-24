@@ -17,6 +17,7 @@ import { SkeletonBar, SkeletonCard } from "./skeleton";
 type Props = {
   hidden: boolean;
   startingCash: string;
+  cashUsd: string;
   startingInvestment: string;
   investmentValue: string | null;
   allTimeIncome: string;
@@ -28,16 +29,20 @@ type Props = {
 function Stat({
   label,
   value,
+  sub,
   tone = "text-slate-900",
 }: {
   label: string;
   value: string;
+  /** 第二行，用來顯示同一項目的外幣部分 */
+  sub?: string | null;
   tone?: string;
 }) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
       <p className={`tabular mt-0.5 text-base font-semibold ${tone}`}>{value}</p>
+      {sub && <p className="tabular mt-0.5 text-sm text-slate-500">{sub}</p>}
     </div>
   );
 }
@@ -62,13 +67,17 @@ export function AssetsCardSkeleton() {
 export default async function AssetsCard(props: Props) {
   const userId = await requireUserId();
   const fmt = amountFormatter(props.hidden);
+  const fmtUsd = amountFormatter(props.hidden, "USD");
 
   const holdings = await getHoldings(userId);
   const usSymbols = holdings.filter((h) => h.market === "US").map((h) => h.symbol);
 
+  // 有美股持股、或有美元現金，都需要匯率才能併入台幣合計
+  const needsFx = usSymbols.length > 0 || Number(props.cashUsd) > 0;
+
   const [book, fx] = await Promise.all([
     fetchQuotes(usSymbols),
-    usSymbols.length > 0 ? fetchUsdToTwd() : Promise.resolve(null),
+    needsFx ? fetchUsdToTwd() : Promise.resolve(null),
   ]);
 
   // 有持股明細就用它算投資部位；沒有才退回設定頁手動維護的數值
@@ -92,8 +101,14 @@ export default async function AssetsCard(props: Props) {
     allTimeConsumption: props.allTimeConsumption,
     allTimeInvestment: props.allTimeInvestment,
     avgMonthlyConsumption: props.avgMonthlyConsumption,
+    cashUsd: props.cashUsd,
+    usdToTwd: fx?.usdToTwd ?? null,
     portfolio: portfolio
-      ? { cost: portfolio.totalCost, value: portfolio.totalValue }
+      ? {
+          cost: portfolio.totalCost,
+          value: portfolio.totalValue,
+          byCurrency: portfolio.byCurrency,
+        }
       : null,
   });
 
@@ -111,7 +126,11 @@ export default async function AssetsCard(props: Props) {
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-4">
-        <Stat label="現金" value={fmt(assets.cash)} />
+        <Stat
+          label="現金"
+          value={fmt(assets.cash)}
+          sub={assets.cashUsd.greaterThan(0) ? fmtUsd(assets.cashUsd) : null}
+        />
         <Stat
           label="緊急預備金"
           value={
@@ -127,9 +146,18 @@ export default async function AssetsCard(props: Props) {
         />
         <Stat
           label="投資"
-          value={fmt(assets.investmentValue ?? assets.investmentCost)}
+          value={fmt(assets.investmentTwd)}
+          sub={
+            assets.investmentUsd.greaterThan(0)
+              ? fmtUsd(assets.investmentUsd)
+              : null
+          }
         />
-        <Stat label="總資產" value={fmt(assets.netWorth)} />
+        <Stat
+          label="總資產"
+          value={fmt(assets.netWorth)}
+          sub={fx ? `美元匯率 ${fx.usdToTwd.toFixed(2)}` : null}
+        />
       </div>
 
       {assets.unrealizedGain && (

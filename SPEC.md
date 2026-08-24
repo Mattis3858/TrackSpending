@@ -608,6 +608,16 @@ reports.ts 負責單月加總，analysis.ts 負責從加總再推出來的東西
 - 改動 manifest 的**圖示或名稱**時，Android 的 WebAPK 需要重新產生，Chrome 會自動偵測但可能延遲數天。程式碼與資料的更新是即時的，不受影響。
 - ColorOS 對背景程序管理激進，若之後做推播提醒，需要把 Chrome 排除在省電最佳化之外，否則可能收不到。
 
+### 部署
+
+正式站：**https://track-spending-mattis.vercel.app**
+
+Vercel 上必須設定 4 個環境變數（`DATABASE_URL`、`DIRECT_URL`、`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`）。**`DIRECT_URL` 不能漏**——`prisma.config.ts` 的 `env("DIRECT_URL")` 找不到變數會拋錯，而 build 會跑 `prisma generate`，所以漏掉會直接 build 失敗。
+
+`SUPABASE_SERVICE_ROLE_KEY` 與 `SEED_USER_ID` 不需要設（前者程式沒用到，後者只有本機 seed 用得到）。
+
+build 指令是 `prisma migrate deploy && next build`：每次部署會先套用未執行的 migration，schema 變更才不會只停在本機。migration 失敗時 build 會中止，這是刻意的——不要讓程式碼跑在還沒套用 schema 的資料庫上。
+
 ### 待辦
 
 - **分類月變化排行**：`categoryDelta()` 已寫好並測試過，但還沒接 UI（需要兩個月資料才看得到東西）

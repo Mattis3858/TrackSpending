@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Props = {
   hidden: boolean;
@@ -43,13 +44,24 @@ function EyeOffIcon() {
 }
 
 export default function AmountVisibilityToggle({ hidden, onToggleAction }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+
+  async function toggle() {
+    setPending(true);
+    await onToggleAction(!hidden);
+    // 用 refresh 而不是 startTransition：轉場期間 React 不會顯示 Suspense
+    // 骨架，而是等整棵樹（包含要抓報價的資產卡）都好了才換畫面。
+    // refresh 會讓資產卡先顯示骨架，其餘畫面立刻更新。
+    router.refresh();
+    setPending(false);
+  }
 
   return (
     <button
       type="button"
-      onClick={() => startTransition(() => onToggleAction(!hidden))}
-      disabled={isPending}
+      onClick={toggle}
+      disabled={pending}
       aria-pressed={hidden}
       aria-label={hidden ? "顯示金額" : "隱藏金額"}
       title={hidden ? "顯示金額" : "隱藏金額"}

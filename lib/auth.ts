@@ -7,6 +7,7 @@
  *
  * 另外一律用 getUser() 而不是 getSession()：後者只讀 cookie，內容未經伺服器驗證。
  */
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export class UnauthorizedError extends Error {
@@ -16,14 +17,20 @@ export class UnauthorizedError extends Error {
   }
 }
 
-/** 取得目前登入者，未登入回傳 null */
-export async function getCurrentUser() {
+/**
+  * 取得目前登入者，未登入回傳 null。
+  *
+  * 用 React cache() 包起來：同一次請求裡會被呼叫多次（頁面本身、
+  * 資產卡、各個 Server Action），每次都打一趟 Supabase Auth 太浪費。
+  * cache() 的範圍限於單一請求，不會跨使用者共用。
+  */
+export const getCurrentUser = cache(async () => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
 /** 取得目前登入者，未登入直接拋錯。所有 Server Action 的第一行都要呼叫這個。 */
 export async function requireUser() {

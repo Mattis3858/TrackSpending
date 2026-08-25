@@ -68,7 +68,8 @@ export async function createHolding(raw: unknown): Promise<ActionResult> {
 
   if (existing) {
     // 之前封存過的同代號持股，直接復原並覆寫
-    await prisma.holding.update({ where: { id: existing.id }, data });
+    // 用 updateMany 帶 userId，而不是只靠 id（SPEC 7.2）
+    await prisma.holding.updateMany({ where: { id: existing.id, userId }, data });
   } else {
     await prisma.holding.create({ data: { userId, ...data } });
   }

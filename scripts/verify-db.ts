@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { getFrequentCategoryIds, getHoldings, getTransactionsForMonth } from "../lib/queries";
 import { fetchQuotes, fetchUsQuotes } from "../lib/quotes";
+import { getCategories } from "../lib/queries";
 import { fetchUsdToTwd } from "../lib/fx";
 import { summarizeMonth, expenseByCategory } from "../lib/reports";
 import { valuePortfolio } from "../lib/analysis";
@@ -94,7 +95,7 @@ async function main() {
         console.log("ℹ  用真實報價試算 1000 股台積電：市值 " + sim.totalValue.toFixed(0) + "，損益 " + sim.totalGain.toFixed(0));
       }
     } finally {
-      await prisma.holding.delete({ where: { id: h.id } });
+      await prisma.holding.deleteMany({ where: { id: h.id, userId } });
       console.log("🧹 已清除驗證用持股");
     }
 
@@ -117,6 +118,41 @@ async function main() {
       const twdOk = sim.missingFx === 0 && sim.totalValue.greaterThan(0);
       results.push(["美股換算台幣", twdOk ? "PASS" : "FAIL", ""]);
       console.log((twdOk ? "✅" : "❌") + " 美股換算台幣  → 2 股 VOO 市值 NT$ " + sim.totalValue.toFixed(0) + "（成本 NT$ " + sim.totalCost.toFixed(0) + "）");
+    }
+
+    // ── 多租戶隔離：建一個假的第二使用者，確認彼此看不到對方的資料
+    const OTHER = "00000000-0000-4000-8000-0000deadbeef";
+    const otherCat = await prisma.category.create({
+      data: { userId: OTHER, name: "別人的分類", type: "EXPENSE", color: "#000" },
+    });
+    const otherTx = await prisma.transaction.create({
+      data: { userId: OTHER, date: toDbDate(`${YM}-15`), type: "EXPENSE", amount: "88888", categoryId: otherCat.id },
+    });
+    try {
+      const mine = await getTransactionsForMonth(userId, YM);
+      const leaked = mine.some((t) => t.id === otherTx.id);
+      results.push(["交易不會外洩給其他使用者", leaked ? "FAIL" : "PASS", ""]);
+      console.log((leaked ? "❌" : "✅") + " 交易不會外洩給其他使用者  → 讀到 " + mine.length + " 筆，不含對方的 88888");
+
+      const myCats = await getCategories(userId);
+      const catLeaked = myCats.some((c) => c.id === otherCat.id);
+      results.push(["分類不會外洩給其他使用者", catLeaked ? "FAIL" : "PASS", ""]);
+      console.log((catLeaked ? "❌" : "✅") + " 分類不會外洩給其他使用者  → 讀到 " + myCats.length + " 個，不含「別人的分類」");
+
+      // guard 應該擋下沒帶 userId 的查詢
+      let guarded = false;
+      try {
+        // @ts-expect-error 故意少傳 userId 測試防線
+        await prisma.transaction.findMany({ where: { type: "EXPENSE" } });
+      } catch (e) {
+        guarded = (e as Error).name === "MissingTenantScopeError";
+      }
+      results.push(["少了 userId 的查詢會被擋下", guarded ? "PASS" : "FAIL", ""]);
+      console.log((guarded ? "✅" : "❌") + " 少了 userId 的查詢會被擋下  → " + (guarded ? "拋出 MissingTenantScopeError" : "竟然放行了"));
+    } finally {
+      await prisma.transaction.deleteMany({ where: { userId: OTHER } });
+      await prisma.category.deleteMany({ where: { userId: OTHER } });
+      console.log("🧹 已清除第二使用者的測試資料");
     }
 
     console.log(`\n整體：${results.every((r) => r[1] === "PASS") ? "全部通過" : "有失敗項目"}`);

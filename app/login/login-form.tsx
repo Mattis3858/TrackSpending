@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -91,6 +92,13 @@ export default function LoginForm() {
       >
         {pending ? "登入中…" : "登入"}
       </button>
+
+      <p className="text-center text-sm text-slate-500">
+        還沒有帳號？
+        <Link href="/signup" className="ml-1 font-medium text-slate-900 hover:underline">
+          註冊
+        </Link>
+      </p>
     </form>
   );
 }

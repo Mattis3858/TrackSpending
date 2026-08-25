@@ -36,8 +36,9 @@ export async function createCategory(raw: unknown): Promise<ActionResult> {
   if (duplicate) {
     if (duplicate.archived) {
       // 同名分類之前被封存過，直接復原而不是報錯
-      await prisma.category.update({
-        where: { id: duplicate.id },
+      // 用 updateMany 帶 userId，而不是只靠 id（SPEC 7.2）
+      await prisma.category.updateMany({
+        where: { id: duplicate.id, userId },
         data: { archived: false, color: input.color, kind: input.kind ?? "VARIABLE" },
       });
       revalidateAll();

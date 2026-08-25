@@ -5,6 +5,7 @@
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { assertTenantScoped } from "@/lib/tenant-guard";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: ReturnType<typeof createPrismaClient>;
@@ -14,9 +15,22 @@ function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
 
-  return new PrismaClient({
+  const client = new PrismaClient({
     adapter: new PrismaPg({ connectionString }),
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
+
+  // 多租戶防線：任何針對租戶資料表、卻沒帶 userId 的查詢一律拋錯。
+  // Prisma 直連會繞過 RLS，這是唯一擋得住「忘記加 userId」的機制。見 SPEC 5.1
+  return client.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          assertTenantScoped(model, operation, args);
+          return query(args);
+        },
+      },
+    },
   });
 }
 

@@ -511,6 +511,41 @@ Yahoo 是非官方端點、隨時可能改或擋，所以美股報價失敗只�
 
 現金的算法不受影響：投入投資的錢仍然要從現金扣掉。
 
+## 8.8 多租戶（每個帳號各自獨立的帳本）
+
+### 三道防線
+
+資料隔離**完全靠應用層**，因為 Prisma 直連 Postgres 會繞過 Supabase 的 RLS（見 5.1）。所以做了三層：
+
+1. **每支查詢都帶 `where: { userId }`** — 基本要求，`lib/queries.ts` 的每個函式第一個參數都是 userId。
+2. **`lib/tenant-guard.ts` 執行期防線** — Prisma client extension 攔截所有查詢，針對租戶資料表若條件裡沒有 userId 就拋 `MissingTenantScopeError`。把「靠自律」變成「結構上做不到」。
+3. **`npm run verify:db` 的隔離驗證** — 建一個假的第二使用者塞資料，確認讀不到對方的交易與分類，並確認 guard 真的會擋。
+
+**受保護的資料表**：`Category`、`Transaction`、`Holding`、`UserSetting`、`Account`、`RecurringTemplate`、`NetWorthSnapshot`。
+
+**guard 的一個副作用（是好事）**：`update({ where: { id } })` 這種只靠 id 的寫法會被擋下，必須改成 `updateMany({ where: { id, userId } })`。這正是 7.2 一直要求的做法，現在變成強制。
+
+**`$queryRaw` 不在 guard 的守備範圍**（無法檢查 SQL 字串），寫 raw query 時要自己確認有 `where t."userId" = ${userId}`。目前只有 `getMonthlyTotals` 用到，已經帶了。
+
+### 尚未做：資料庫層的 RLS
+
+真正的縱深防禦是 Postgres RLS，但用 Prisma 要付出的代價不小：
+
+- 必須另建一個**非 superuser** 的資料庫角色（`postgres` 是表的擁有者，預設會繞過 RLS，除非加 `FORCE ROW LEVEL SECURITY`，而 superuser 連 FORCE 都無視）
+- 每個請求要用 `SET LOCAL app.user_id` 帶入身分，等於每支查詢都要包在 transaction 裡
+
+這是一個獨立的專案，不是順手可以加的。目前的三道防線已經擋得住「忘記加 userId」這個實際會發生的錯誤；RLS 留作日後強化。
+
+### 新使用者初始化
+
+預設分類清單抽到 `lib/default-categories.ts`，由 `prisma/seed.ts` 與 `lib/provisioning.ts` **共用同一份**——分成兩份會在加分類時忘記改另一邊，讓不同時期註冊的使用者拿到不同的預設值。
+
+初始化時機是**第一次成功載入首頁**，不是註冊當下：Supabase 若開啟 email 驗證，`signUp` 當下拿不到 session，那時沒有可信的 userId。`ensureProvisioned()` 必須是冪等的（用 `createMany + skipDuplicates`），因為它每次首頁載入都會被呼叫。
+
+### 注意：註冊是開放的
+
+任何人都能在 `/signup` 註冊。若之後想限制（邀請碼、白名單、關閉註冊），要在 signup 流程加檢查——目前沒有任何限制。
+
 ## 9. 功能規格
 
 ### Phase 1（MVP，第一版一定要有）
@@ -627,6 +662,8 @@ Yahoo 是非官方端點、隨時可能改或擋，所以美股報價失敗只�
 | — | 衍生分析：每日可用額度、消費速度、資產與緊急預備金、儲蓄率拆解 | ✅ |
 | — | 持股明細 + 台股公開報價，投資現值自動更新 | ✅ |
 | — | 複委託（美股）：Yahoo 報價 + 美元匯率換算 | ✅ |
+| — | 資產依幣別拆分（現金／投資各分台幣與美元） | ✅ |
+| — | 多租戶：註冊流程、新使用者初始化、租戶隔離防線 | ✅ |
 | — | 金額遮罩（眼睛按鈕），狀態存 cookie 讓伺服器端就渲染成遮罩 | ✅ |
 | — | PWA：`app/manifest.ts` + 圖示，可安裝成 Android WebAPK | ✅ 待部署後才能安裝 |
 

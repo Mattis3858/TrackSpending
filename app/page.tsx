@@ -10,6 +10,7 @@ import {
   sumMonthlyTotals,
 } from "@/lib/queries";
 import { readYearMonth } from "@/lib/params";
+import { ensureProvisioned } from "@/lib/provisioning";
 import { expenseByCategory, summarizeMonth } from "@/lib/reports";
 import {
   averageMonthlyConsumption,
@@ -81,7 +82,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const searchParams = await props.searchParams;
   const ym = readYearMonth(searchParams.m);
 
-  const [txs, categories, frequentIds, lastUsedCategoryId, history, setting] =
+  const [txs, initialCategories, frequentIds, lastUsedCategoryId, history, setting] =
     await Promise.all([
       getTransactionsForMonth(userId, ym),
       getCategories(userId),
@@ -90,6 +91,12 @@ export default async function HomePage(props: PageProps<"/">) {
       getMonthlyTotals(userId),
       getUserSetting(userId),
     ]);
+
+  // 新註冊的使用者還沒有分類，第一次進來時補上（冪等，已有就什麼都不做）
+  const provision = await ensureProvisioned(userId, initialCategories.length > 0);
+  const categories = provision.created
+    ? await getCategories(userId)
+    : initialCategories;
 
   const summary = summarizeMonth(txs);
   const hidden = await getHideAmounts();

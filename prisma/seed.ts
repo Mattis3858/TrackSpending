@@ -8,31 +8,10 @@
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
-import { CategoryKind, TransactionType } from "../generated/prisma/enums";
+import { DEFAULT_CATEGORIES } from "../lib/default-categories";
 
-type SeedCategory = {
-  name: string;
-  type: TransactionType;
-  kind?: CategoryKind;
-  color: string;
-};
-
-const CATEGORIES: SeedCategory[] = [
-  { name: "就業收入", type: TransactionType.INCOME, color: "#22c55e" },
-  { name: "額外收入", type: TransactionType.INCOME, color: "#14b8a6" },
-  { name: "房租", type: TransactionType.EXPENSE, kind: CategoryKind.FIXED, color: "#6366f1" },
-  { name: "水電瓦斯", type: TransactionType.EXPENSE, kind: CategoryKind.FIXED, color: "#0ea5e9" },
-  { name: "餐飲", type: TransactionType.EXPENSE, color: "#f59e0b" },
-  { name: "交通", type: TransactionType.EXPENSE, color: "#3b82f6" },
-  { name: "娛樂", type: TransactionType.EXPENSE, color: "#ec4899" },
-  { name: "保險", type: TransactionType.EXPENSE, kind: CategoryKind.FIXED, color: "#8b5cf6" },
-  // 儲蓄與投資都不計入「消費支出」。見 SPEC 5.2
-  // 顏色刻意都用綠色系，提醒這兩類是「錢還在，只是換了形式」
-  // 兩者的差別：SAVINGS 仍是現金，計入緊急預備金；INVESTMENT 已離開現金部位，不計入
-  { name: "儲蓄", type: TransactionType.EXPENSE, kind: CategoryKind.SAVINGS, color: "#10b981" },
-  { name: "投資", type: TransactionType.EXPENSE, kind: CategoryKind.INVESTMENT, color: "#059669" },
-  { name: "其他", type: TransactionType.EXPENSE, color: "#94a3b8" },
-];
+// 分類清單跟 lib/provisioning.ts 共用，避免兩邊分歧
+const CATEGORIES = DEFAULT_CATEGORIES;
 
 async function main() {
   const userId = process.env.SEED_USER_ID;
@@ -56,7 +35,7 @@ async function main() {
         // 已存在時只校正語意相關欄位。
         // 不要覆寫 color / sortOrder，否則重跑 seed 會把使用者在 UI 上改過的顏色與排序洗掉。
         update: {
-          kind: c.kind ?? CategoryKind.VARIABLE,
+          kind: c.kind,
           isDefault: true,
         },
         create: {
@@ -64,7 +43,7 @@ async function main() {
           name: c.name,
           type: c.type,
           isDefault: true,
-          kind: c.kind ?? CategoryKind.VARIABLE,
+          kind: c.kind,
           color: c.color,
           sortOrder: index,
         },

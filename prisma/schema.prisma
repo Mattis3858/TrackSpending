@@ -179,6 +179,27 @@ model Holding {
   @@index([userId, archived])
 }
 
+/// Web Push 訂閱。同一個使用者可以有多個裝置，所以不是一對一。
+/// endpoint 是推播服務商給的唯一網址，拿它當唯一鍵就能自然去重。
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+
+  endpoint String @unique
+  /// 加密用的金鑰，由瀏覽器產生
+  p256dh   String
+  auth     String
+
+  /// 裝置描述，方便使用者辨認要取消哪一台
+  userAgent String?
+  /// 最後一次成功推播的時間；連續失敗的訂閱會被清掉
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+}
+
 model NetWorthSnapshot {
   id          String   @id @default(cuid())
   userId      String

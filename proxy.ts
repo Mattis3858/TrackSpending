@@ -11,7 +11,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/api/health"];
+// 排程端點有自己的 secret 驗證，不能靠登入 cookie（呼叫它的是機器不是人）
+const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/api/health", "/api/cron"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -67,7 +68,9 @@ export const config = {
   // 排除靜態資源，否則 CSS/JS/圖片也會被擋。
   // manifest.webmanifest 也必須放行：Chrome 在判斷「能不能安裝成 app」時會抓它，
   // 被導向登入頁的話就讀不到 manifest，安裝提示不會出現。
+  // sw.js 也必須放行：service worker 被導向登入頁的 HTML 就註冊不起來，
+  // 推播整個失效，而且錯誤訊息很難看出原因。
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

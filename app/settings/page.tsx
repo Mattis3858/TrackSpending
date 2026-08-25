@@ -5,6 +5,13 @@ import { saveSettings } from "@/app/actions/settings";
 import type { SettingsInput } from "@/lib/validation";
 import BottomNav from "@/components/bottom-nav";
 import SettingsForm from "@/components/settings-form";
+import ReminderToggle from "@/components/reminder-toggle";
+import {
+  deletePushSubscription,
+  hasPushSubscription,
+  savePushSubscription,
+  type PushSubscriptionInput,
+} from "@/app/actions/push";
 
 export const metadata = { title: "設定 · 記帳" };
 
@@ -17,6 +24,21 @@ export default async function SettingsPage() {
     return saveSettings(input);
   }
 
+  async function subscribe(input: PushSubscriptionInput) {
+    "use server";
+    return savePushSubscription(input);
+  }
+  async function unsubscribe(endpoint: string) {
+    "use server";
+    return deletePushSubscription(endpoint);
+  }
+  async function checkSubscription(endpoint: string) {
+    "use server";
+    return hasPushSubscription(endpoint);
+  }
+
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
   return (
     <>
       <main className="flex-1 px-4 py-6">
@@ -26,6 +48,17 @@ export default async function SettingsPage() {
           <div className="mt-5">
             <SettingsForm setting={setting} onSaveAction={save} />
           </div>
+
+          {vapidPublicKey && (
+            <div className="mt-6">
+              <ReminderToggle
+                publicKey={vapidPublicKey}
+                onSubscribe={subscribe}
+                onUnsubscribe={unsubscribe}
+                onCheck={checkSubscription}
+              />
+            </div>
+          )}
 
           <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
             <Link

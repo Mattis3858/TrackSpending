@@ -20,6 +20,7 @@ const TENANT_MODELS = new Set([
   "Account",
   "RecurringTemplate",
   "NetWorthSnapshot",
+  "PushSubscription",
 ]);
 
 /** 讀寫既有資料：條件裡必須有 userId */

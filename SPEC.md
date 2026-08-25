@@ -548,6 +548,53 @@ Yahoo 是非官方端點、隨時可能改或擋，所以美股報價失敗只�
 
 任何人都能在 `/signup` 註冊。若之後想限制（邀請碼、白名單、關閉註冊），要在 signup 流程加檢查——目前沒有任何限制。
 
+## 8.9 每日記帳提醒（Web Push）
+
+台北時間每晚 **22:00** 提醒，**當天已經記過帳的人不會收到**——會固定每天跳的通知很快就被關掉，那等於整個功能失效。
+
+### 元件
+
+| 檔案 | 角色 |
+|---|---|
+| `public/sw.js` | Service worker，**只處理推播，刻意不做任何快取** |
+| `lib/push.ts` | base64url 轉換、裝置描述、失效判斷（純函式，可測） |
+| `app/actions/push.ts` | 訂閱的存取，以 `endpoint` 為唯一鍵 |
+| `app/api/cron/reminder/route.ts` | 排程端點 |
+| `components/reminder-toggle.tsx` | 設定頁的開關 |
+
+### 幾個關鍵決定
+
+**Service worker 不做快取。** 這個 app 每一頁都是伺服器即時算的（報表、資產、報價），快取只會讓人看到過期數字而且難以察覺。離線也沒有意義——資料全在 Supabase。沒有 fetch handler 不影響安裝，Chrome 現在只看 manifest。
+
+**`proxy.ts` 必須放行 `/sw.js` 與 `/api/cron`。** service worker 被導向登入頁的 HTML 就註冊不起來，而且錯誤訊息完全看不出原因；排程端點的呼叫者是機器，沒有登入 cookie，它用自己的 `CRON_SECRET` 驗證。
+
+**排程需要跨租戶查詢**，所以用 `prismaUnscoped`（繞過 5.1 的租戶防線）。這是專案裡唯一這樣做的地方；任何新的使用都該在 review 時被質疑。
+
+**只有 404 / 410 才刪訂閱。** 那代表使用者移除了 app 或撤銷授權，訂閱永久失效。其他錯誤（500、429、暫時性網路問題）只是這次沒送到，刪掉會讓人莫名其妙收不到提醒。
+
+**訂閱綁定裝置不是帳號**，每台想收到的裝置都要各自開啟。`endpoint` 當唯一鍵，同一台重複訂閱是覆寫；換帳號登入時 `userId` 會一併更新，避免推播寄到前一個使用者。
+
+### 環境變數
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY   公鑰，會出現在前端
+VAPID_PRIVATE_KEY              私鑰，絕對不能加 NEXT_PUBLIC_
+VAPID_SUBJECT                  mailto:聯絡信箱，推播服務商要求
+CRON_SECRET                    保護排程端點
+```
+
+用 `npx web-push generate-vapid-keys` 產生金鑰。**四個都要設到 Vercel**，否則設定頁不會顯示開關（缺公鑰）或排程會回 500。
+
+### 排程
+
+`vercel.json` 的 `crons`：`"0 14 * * *"`（UTC）= 台北 22:00。Vercel Cron 會帶 `Authorization: Bearer <CRON_SECRET>`。
+
+端點同時接受 `?secret=`，所以若 Vercel 方案不支援排程，任何外部排程服務都能改呼叫 `/api/cron/reminder?secret=...` 達到一樣效果。
+
+### ColorOS 的注意事項
+
+OPPO 的 ColorOS 對背景程序管理激進，通知可能延遲或收不到。解法是「設定 → 電池 → 把 Chrome 排除在省電最佳化之外」。這不在程式能控制的範圍。
+
 ## 9. 功能規格
 
 ### Phase 1（MVP，第一版一定要有）
@@ -666,6 +713,7 @@ Yahoo 是非官方端點、隨時可能改或擋，所以美股報價失敗只�
 | — | 複委託（美股）：Yahoo 報價 + 美元匯率換算 | ✅ |
 | — | 資產依幣別拆分（現金／投資各分台幣與美元） | ✅ |
 | — | 多租戶：註冊流程、新使用者初始化、租戶隔離防線 | ✅ |
+| — | 每日記帳提醒（Web Push + 排程），當天記過就不打擾 | ✅ |
 | — | 金額遮罩（眼睛按鈕），狀態存 cookie 讓伺服器端就渲染成遮罩 | ✅ |
 | — | PWA：`app/manifest.ts` + 圖示，可安裝成 Android WebAPK | ✅ 待部署後才能安裝 |
 

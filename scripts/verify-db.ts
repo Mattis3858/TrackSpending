@@ -142,7 +142,7 @@ async function main() {
       // guard 應該擋下沒帶 userId 的查詢
       let guarded = false;
       try {
-        // @ts-expect-error 故意少傳 userId 測試防線
+        // 故意少傳 userId：型別上合法，靠執行期的 guard 擋下
         await prisma.transaction.findMany({ where: { type: "EXPENSE" } });
       } catch (e) {
         guarded = (e as Error).name === "MissingTenantScopeError";

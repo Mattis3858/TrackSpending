@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   assetSummary,
   averageMonthlyConsumption,
+  averageMonthlyFixed,
   budgetFromTarget,
+  bufferFund,
   categoryDelta,
   monthPace,
   savingsBreakdown,
@@ -296,11 +298,11 @@ describe("assetSummary — 現金與投資依幣別拆分", () => {
 
 describe("averageMonthlyConsumption", () => {
   const history: MonthlyTotal[] = [
-    { yearMonth: "2026-08", income: new Decimal(0), consumption: new Decimal(5000), savings: new Decimal(0), investment: new Decimal(0) },
-    { yearMonth: "2026-07", income: new Decimal(0), consumption: new Decimal(30000), savings: new Decimal(0), investment: new Decimal(0) },
-    { yearMonth: "2026-06", income: new Decimal(0), consumption: new Decimal(28000), savings: new Decimal(0), investment: new Decimal(0) },
-    { yearMonth: "2026-05", income: new Decimal(0), consumption: new Decimal(26000), savings: new Decimal(0), investment: new Decimal(0) },
-    { yearMonth: "2026-04", income: new Decimal(0), consumption: new Decimal(90000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-08", income: new Decimal(0), consumption: new Decimal(5000), fixed: new Decimal(3000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-07", income: new Decimal(0), consumption: new Decimal(30000), fixed: new Decimal(18000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-06", income: new Decimal(0), consumption: new Decimal(28000), fixed: new Decimal(18000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-05", income: new Decimal(0), consumption: new Decimal(26000), fixed: new Decimal(17000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-04", income: new Decimal(0), consumption: new Decimal(90000), fixed: new Decimal(18000), savings: new Decimal(0), investment: new Decimal(0) },
   ];
 
   it("排除當月（還沒過完，會拉低平均）", () => {
@@ -586,3 +588,97 @@ describe("valuePortfolio — 複委託（美股）多幣別", () => {
   });
 });
 
+
+describe("bufferFund — 緩衝／娛樂資金", () => {
+  const base = {
+    income: "50000",
+    fixedSoFar: "18000", // 房租 15,000 + 水電網路 3,000
+    variableSoFar: "6000",
+    elapsedDays: 10,
+    totalDays: 30,
+  };
+
+  it("日均只算變動消費，不含固定支出", () => {
+    const b = bufferFund(base);
+    // 6,000 / 10 天 = 600/天 × 30 = 18,000
+    expect(b.variableProjected.toFixed(0)).toBe("18000");
+    // 若把固定支出也混進日均：(18,000+6,000)/10 × 30 = 72,000，嚴重高估
+    expect(b.variableProjected.toFixed(0)).not.toBe("72000");
+  });
+
+  it("緩衝 = 收入 − 固定支出 − 預估變動消費，固定支出只扣一次", () => {
+    const b = bufferFund(base);
+    // 50,000 − 18,000 − 18,000 = 14,000
+    expect(b.buffer.toFixed(0)).toBe("14000");
+    expect(b.bufferRatio).toBeCloseTo(0.28, 4);
+  });
+
+  it("本月還沒記到房租時，用歷史參考值推估固定支出", () => {
+    const b = bufferFund({
+      ...base,
+      fixedSoFar: "3000", // 只記了水電，房租還沒扣
+      historicalFixed: "18000",
+    });
+
+    expect(b.fixed.toFixed(0)).toBe("18000");
+    expect(b.fixedEstimated).toBe(true);
+    // 若只用已記錄的 3,000，緩衝會被高估成 29,000 —— 危險的方向
+    expect(b.buffer.toFixed(0)).toBe("14000");
+  });
+
+  it("本月固定支出已超過歷史值時，以實際為準", () => {
+    const b = bufferFund({ ...base, fixedSoFar: "20000", historicalFixed: "18000" });
+    expect(b.fixed.toFixed(0)).toBe("20000");
+    expect(b.fixedEstimated).toBe(false);
+  });
+
+  it("沒有歷史資料時就用本月已記錄的", () => {
+    const b = bufferFund({ ...base, historicalFixed: null });
+    expect(b.fixed.toFixed(0)).toBe("18000");
+    expect(b.fixedEstimated).toBe(false);
+  });
+
+  it("月初第一天不會除以零", () => {
+    const b = bufferFund({ ...base, elapsedDays: 1, variableSoFar: "500" });
+    expect(b.variableProjected.toFixed(0)).toBe("15000");
+  });
+
+  it("未來的月份（還沒開始）預估變動為 0", () => {
+    const b = bufferFund({ ...base, elapsedDays: 0, variableSoFar: "0" });
+    expect(b.variableProjected.toFixed(0)).toBe("0");
+    expect(b.buffer.toFixed(0)).toBe("32000");
+  });
+
+  it("花超過收入時緩衝為負，不會被 clamp", () => {
+    const b = bufferFund({ ...base, variableSoFar: "20000" });
+    // 20,000/10 × 30 = 60,000；50,000 − 18,000 − 60,000 = −28,000
+    expect(b.buffer.toFixed(0)).toBe("-28000");
+    expect(b.bufferRatio).toBeLessThan(0);
+  });
+
+  it("沒有收入時比例為 null，不會除以零", () => {
+    expect(bufferFund({ ...base, income: "0" }).bufferRatio).toBeNull();
+  });
+});
+
+describe("averageMonthlyFixed", () => {
+  const history: MonthlyTotal[] = [
+    { yearMonth: "2026-08", income: new Decimal(0), consumption: new Decimal(5000), fixed: new Decimal(3000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-07", income: new Decimal(0), consumption: new Decimal(30000), fixed: new Decimal(18000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-06", income: new Decimal(0), consumption: new Decimal(28000), fixed: new Decimal(18000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-05", income: new Decimal(0), consumption: new Decimal(26000), fixed: new Decimal(17000), savings: new Decimal(0), investment: new Decimal(0) },
+  ];
+
+  it("排除當月——當月的固定支出還沒發生完，拿來當參考會低估", () => {
+    // 取 7、6、5 月 = (18000+18000+17000)/3 = 17,666.67，不含 8 月的 3,000
+    expect(averageMonthlyFixed(history, "2026-08")?.toFixed(0)).toBe("17667");
+  });
+
+  it("只有當月資料時回傳 null（沒有可靠的參考值就不要推估）", () => {
+    expect(averageMonthlyFixed([history[0]], "2026-08")).toBeNull();
+  });
+
+  it("完全沒資料時回傳 null", () => {
+    expect(averageMonthlyFixed([], "2026-08")).toBeNull();
+  });
+});

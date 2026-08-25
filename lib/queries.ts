@@ -197,6 +197,7 @@ export async function getMonthlyTotals(userId: string): Promise<MonthlyTotal[]> 
       ym: string;
       income: string;
       consumption: string;
+      fixed: string;
       savings: string;
       investment: string;
     }>
@@ -207,6 +208,8 @@ export async function getMonthlyTotals(userId: string): Promise<MonthlyTotal[]> 
       sum(case when t."type" = 'EXPENSE'
                 and (c."kind" is null or c."kind" in ('VARIABLE', 'FIXED'))
                then t."amount" else 0 end)::text as consumption,
+      sum(case when t."type" = 'EXPENSE' and c."kind" = 'FIXED'
+               then t."amount" else 0 end)::text as fixed,
       sum(case when t."type" = 'EXPENSE' and c."kind" = 'SAVINGS'
                then t."amount" else 0 end)::text as savings,
       sum(case when t."type" = 'EXPENSE' and c."kind" = 'INVESTMENT'
@@ -222,6 +225,7 @@ export async function getMonthlyTotals(userId: string): Promise<MonthlyTotal[]> 
     yearMonth: r.ym,
     income: money(r.income),
     consumption: money(r.consumption),
+    fixed: money(r.fixed),
     savings: money(r.savings),
     investment: money(r.investment),
   }));

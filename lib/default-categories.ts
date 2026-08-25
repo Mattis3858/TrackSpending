@@ -19,10 +19,14 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: "就業收入", type: "INCOME", kind: "VARIABLE", color: "#22c55e" },
   { name: "額外收入", type: "INCOME", kind: "VARIABLE", color: "#14b8a6" },
   { name: "房租", type: "EXPENSE", kind: "FIXED", color: "#6366f1" },
-  { name: "水電瓦斯", type: "EXPENSE", kind: "FIXED", color: "#0ea5e9" },
+  { name: "水電網路", type: "EXPENSE", kind: "FIXED", color: "#0ea5e9" },
+  // 訂閱制、每月固定要付 → FIXED。這個歸類會影響緩衝資金的計算（見 SPEC 8.11）
+  { name: "AI 工具", type: "EXPENSE", kind: "FIXED", color: "#7c3aed" },
+  { name: "健身房", type: "EXPENSE", kind: "FIXED", color: "#f43f5e" },
   { name: "餐食", type: "EXPENSE", kind: "VARIABLE", color: "#f59e0b" },
   { name: "飲料", type: "EXPENSE", kind: "VARIABLE", color: "#06b6d4" },
   { name: "交通", type: "EXPENSE", kind: "VARIABLE", color: "#3b82f6" },
+  { name: "日常用品", type: "EXPENSE", kind: "VARIABLE", color: "#84cc16" },
   { name: "娛樂", type: "EXPENSE", kind: "VARIABLE", color: "#ec4899" },
   { name: "保險", type: "EXPENSE", kind: "FIXED", color: "#8b5cf6" },
   // 儲蓄與投資都不計入「消費支出」。見 SPEC 5.2

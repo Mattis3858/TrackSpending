@@ -226,10 +226,26 @@ export function assetSummary(input: {
 export type MonthlyTotal = {
   yearMonth: YearMonth;
   income: Decimal;
+  /** 消費支出合計 = 固定 + 變動 */
   consumption: Decimal;
+  /** 其中的固定支出（房租、水電、訂閱等） */
+  fixed: Decimal;
   savings: Decimal;
   investment: Decimal;
 };
+
+/** 取最近 N 個完整月份；沒有完整月份時才退而用當月 */
+function recentMonths(
+  history: MonthlyTotal[],
+  currentYearMonth: YearMonth,
+  months: number,
+): MonthlyTotal[] {
+  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
+  const pool = complete.length > 0 ? complete : history;
+  return [...pool]
+    .sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1))
+    .slice(0, months);
+}
 
 /**
  * 近 N 個月的平均消費，用來估緊急預備金月數。
@@ -240,15 +256,30 @@ export function averageMonthlyConsumption(
   currentYearMonth: YearMonth,
   months = 3,
 ): Decimal | null {
-  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
-  const pool = complete.length > 0 ? complete : history;
-  if (pool.length === 0) return null;
+  const recent = recentMonths(history, currentYearMonth, months);
+  if (recent.length === 0) return null;
 
-  const recent = [...pool]
+  const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.consumption), ZERO);
+  return total.dividedBy(recent.length);
+}
+
+/**
+ * 近期月份的固定支出參考值，給緩衝資金在「本月房租還沒記」時推估用。
+ * 跟月均消費一樣排除當月——當月固定支出還沒發生完，拿來當參考會低估。
+ */
+export function averageMonthlyFixed(
+  history: MonthlyTotal[],
+  currentYearMonth: YearMonth,
+  months = 3,
+): Decimal | null {
+  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
+  if (complete.length === 0) return null;
+
+  const recent = [...complete]
     .sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1))
     .slice(0, months);
 
-  const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.consumption), ZERO);
+  const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.fixed), ZERO);
   return total.dividedBy(recent.length);
 }
 
@@ -481,5 +512,76 @@ export function valuePortfolio(
     quoteDate: dates.length > 0 ? dates[dates.length - 1] : null,
     usdToTwd: fx,
     byCurrency: { twd: sumBy("TWD"), usd: sumBy("USD") },
+  };
+}
+
+// ───────────────────────────── 緩衝／娛樂資金
+
+export type BufferFund = {
+  income: Decimal;
+  /** 預估的整月固定支出 */
+  fixed: Decimal;
+  /** 固定支出是用歷史推估的（本月還沒記到房租之類的） */
+  fixedEstimated: boolean;
+  /** 目前已花的變動消費 */
+  variableSoFar: Decimal;
+  /** 依目前速度推估的整月變動消費 */
+  variableProjected: Decimal;
+  /** 緩衝 + 娛樂資金 = 收入 − 固定支出 − 預估變動消費 */
+  buffer: Decimal;
+  /** 佔收入比例；沒有收入時為 null */
+  bufferRatio: number | null;
+};
+
+/**
+ * 這個月扣掉「跑不掉的」與「照目前速度會花掉的」之後，還剩多少可以自由運用。
+ *
+ * **日均只用變動消費，不含固定支出。** 房租是某一天的一大筆，混進日均再
+ * 乘上天數會嚴重高估——15,000 的房租在第 6 天會讓日均變成 2,600，
+ * 乘 30 天就是 78,000。固定支出是整月一次，本來就該分開算。
+ *
+ * 固定支出取「本月已記錄」與「近期月份參考值」的較大者：月初房租還沒記時
+ * 用歷史推估，否則會低估支出、高估緩衝——而高估是比較危險的那個方向。
+ */
+export function bufferFund(input: {
+  income: MoneyInput;
+  /** 本月已記錄的固定支出 */
+  fixedSoFar: MoneyInput;
+  /** 本月已記錄的變動消費 */
+  variableSoFar: MoneyInput;
+  elapsedDays: number;
+  totalDays: number;
+  /** 近期月份的固定支出參考值 */
+  historicalFixed?: MoneyInput | null;
+}): BufferFund {
+  const income = money(input.income);
+  const fixedSoFar = money(input.fixedSoFar);
+  const variableSoFar = money(input.variableSoFar);
+
+  const historical =
+    input.historicalFixed === null || input.historicalFixed === undefined
+      ? ZERO
+      : money(input.historicalFixed);
+
+  const useHistorical = historical.greaterThan(fixedSoFar);
+  const fixed = useHistorical ? historical : fixedSoFar;
+
+  const variableProjected =
+    input.elapsedDays > 0
+      ? variableSoFar.dividedBy(input.elapsedDays).times(input.totalDays)
+      : ZERO;
+
+  const buffer = income.minus(fixed).minus(variableProjected);
+
+  return {
+    income,
+    fixed,
+    fixedEstimated: useHistorical,
+    variableSoFar,
+    variableProjected,
+    buffer,
+    bufferRatio: income.greaterThan(0)
+      ? buffer.dividedBy(income).toNumber()
+      : null,
   };
 }

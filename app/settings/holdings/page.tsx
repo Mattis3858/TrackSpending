@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
 import { getHoldings } from "@/lib/queries";
-import { fetchQuotes } from "@/lib/quotes";
-import { fetchUsdToTwd } from "@/lib/fx";
+import { getQuotes, getUsdToTwd } from "@/lib/quote-cache";
 import { valuePortfolio } from "@/lib/analysis";
 import { formatPercent, formatTWD } from "@/lib/money";
 import {
@@ -20,12 +19,12 @@ export default async function HoldingsPage() {
   const userId = await requireUserId();
 
   const holdings = await getHoldings(userId);
-  const usSymbols = holdings.filter((h) => h.market === "US").map((h) => h.symbol);
+  const hasUs = holdings.some((h) => h.market === "US");
 
   // 有美股才需要匯率；沒有就不必打那支 API
   const [book, fx] = await Promise.all([
-    fetchQuotes(usSymbols),
-    usSymbols.length > 0 ? fetchUsdToTwd() : Promise.resolve(null),
+    getQuotes(holdings.map((h) => ({ symbol: h.symbol, market: h.market }))),
+    hasUs ? getUsdToTwd() : Promise.resolve(null),
   ]);
 
   const portfolio = valuePortfolio(

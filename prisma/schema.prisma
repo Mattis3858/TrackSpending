@@ -200,6 +200,32 @@ model PushSubscription {
   @@index([userId])
 }
 
+/// 報價快取。**不是租戶資料**——市場報價人人相同，快取一份大家共用。
+///
+/// 存在的理由：Next.js 的 fetch 快取是「依渲染它的路由檔案標記」的，
+/// 所以任何 revalidatePath("/")（例如記一筆帳）都會把報價快取一起清掉，
+/// 下次開首頁又要跑去台灣重抓 300KB。存在自己的資料庫就完全不受影響，
+/// 而且函式與資料庫同區，讀取只要幾毫秒。
+///
+/// 只快取「使用者實際持有的代號」，不是全市場 2,000 多檔。
+model QuoteCache {
+  symbol    String   @id
+  name      String
+  market    Market
+  price     Decimal  @db.Decimal(18, 6)
+  /// 報價所屬日期 YYYY-MM-DD
+  quoteDate String
+  fetchedAt DateTime @default(now())
+}
+
+/// 匯率快取，理由同上
+model FxRateCache {
+  pair      String   @id /// 例如 USDTWD
+  rate      Decimal  @db.Decimal(18, 6)
+  rateDate  String?
+  fetchedAt DateTime @default(now())
+}
+
 model NetWorthSnapshot {
   id          String   @id @default(cuid())
   userId      String

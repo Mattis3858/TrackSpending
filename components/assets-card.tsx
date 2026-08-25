@@ -1,7 +1,6 @@
 import { requireUserId } from "@/lib/auth";
 import { getHoldings } from "@/lib/queries";
-import { fetchQuotes } from "@/lib/quotes";
-import { fetchUsdToTwd } from "@/lib/fx";
+import { getQuotes, getUsdToTwd } from "@/lib/quote-cache";
 import { assetSummary, valuePortfolio } from "@/lib/analysis";
 import { amountFormatter, formatPercent } from "@/lib/money";
 import { SkeletonBar, SkeletonCard } from "./skeleton";
@@ -68,14 +67,14 @@ export default async function AssetsCard(props: Props) {
   const fmtUsd = amountFormatter(props.hidden, "USD");
 
   const holdings = await getHoldings(userId);
-  const usSymbols = holdings.filter((h) => h.market === "US").map((h) => h.symbol);
+  const hasUs = holdings.some((h) => h.market === "US");
 
   // 有美股持股、或有美元現金，都需要匯率才能併入台幣合計
-  const needsFx = usSymbols.length > 0 || Number(props.cashUsd) > 0;
+  const needsFx = hasUs || Number(props.cashUsd) > 0;
 
   const [book, fx] = await Promise.all([
-    fetchQuotes(usSymbols),
-    needsFx ? fetchUsdToTwd() : Promise.resolve(null),
+    getQuotes(holdings.map((h) => ({ symbol: h.symbol, market: h.market }))),
+    needsFx ? getUsdToTwd() : Promise.resolve(null),
   ]);
 
   // 有持股明細就用它算投資部位；沒有才退回設定頁手動維護的數值

@@ -666,6 +666,40 @@ OPPO 的 ColorOS 對背景程序管理激進，通知可能延遲或收不到。
 
 `FIXED` 與 `VARIABLE` 的歸類直接影響計算。每月固定要付的（房租、水電網路、保險、AI 工具訂閱、健身房月費）都要標記為 `FIXED`，否則會被當成日常變動消費、拉高日均並高估整月支出。
 
+## 8.12 快取與效能
+
+### Next.js 的 fetch 快取有個致命的綁定
+
+> Cache entries are tagged based on which route file renders them.
+
+所以**任何 `revalidatePath("/")` 都會清掉首頁渲染時建立的所有快取**，包含報價。踩到兩次：
+
+1. `setHideAmounts` 原本呼叫 `revalidatePath("/", "layout")`——按一次眼睛就重抓 2,347 檔股票報價（實測 1.3 秒）。**切換顯示格式不該有這種代價。**已改成只寫 cookie，重新渲染交給客戶端的 `router.refresh()`。
+2. `createTransaction` 的 `revalidatePath("/")` 是必要的（資料真的變了），但它同樣會清掉報價快取。
+
+第 2 點沒辦法靠調整 `revalidatePath` 解決，所以改成**把報價存在自己的資料庫**（`QuoteCache` / `FxRateCache`），完全不受 Next 快取語意影響。
+
+### 報價快取的三個設計
+
+- **只快取使用者實際持有的代號。** 證交所端點一次回傳全市場 2,000 多檔，但我們只需要其中幾檔。
+- **不是租戶資料。** 市場報價人人相同，快取一份大家共用，所以不在 `TENANT_MODELS` 裡。
+- **外部 API 掛掉時退回過期快取**，而不是「查無報價、以成本顯示」。昨天的收盤價遠比沒有報價有用。
+
+實測（本機，跨海連雪梨）：冷啟動 4,280 ms → 讀快取 570 ms。那 570 ms 幾乎都是本機的往返延遲；正式環境函式與資料庫同區，只要幾毫秒。
+
+### useTransition 會擋住 Suspense 骨架
+
+眼睛按鈕原本用 `useTransition` 包住 Server Action。**轉場期間 React 不顯示 Suspense 骨架，而是等整棵樹都好了才換畫面**——包含要抓報價的資產卡。改成 `router.refresh()` 之後，資產卡會先顯示骨架，其餘畫面立刻更新。
+
+### 每次請求只驗一次身分
+
+`getCurrentUser` 用 React `cache()` 包起來。首頁一次渲染會呼叫兩次（頁面本身與資產卡），每次都打一趟 Supabase Auth。`cache()` 的範圍限於單一請求，不會跨使用者共用。
+
+### 還沒做的兩個槓桿
+
+- **`DATABASE_URL` 的 `connection_limit=1`** 會讓 `Promise.all` 裡的多支查詢實際上序列化。同區之後每趟只剩幾毫秒所以影響很小，真要再壓可以調到 3~5。
+- **把 Supabase 搬到東京**：目前台灣→雪梨往返約 130 ms，是每次導覽的下限。搬到東京配 `hnd1` 可降到約 40 ms，但要重建專案並搬資料。
+
 ## 9. 功能規格
 
 ### Phase 1（MVP，第一版一定要有）

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("secret");
   if (header !== `Bearer ${secret}` && query !== secret) return unauthorized();
 
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT;
   if (!publicKey || !privateKey || !subject) {

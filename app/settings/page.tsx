@@ -37,7 +37,7 @@ export default async function SettingsPage() {
     return hasPushSubscription(endpoint);
   }
 
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY ?? "";
 
   return (
     <>

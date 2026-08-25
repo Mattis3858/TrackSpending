@@ -583,7 +583,7 @@ Yahoo 是非官方端點、隨時可能改或擋，所以美股報價失敗只�
 ### 環境變數
 
 ```
-NEXT_PUBLIC_VAPID_PUBLIC_KEY   公鑰，會出現在前端
+VAPID_PUBLIC_KEY   公鑰，會出現在前端
 VAPID_PRIVATE_KEY              私鑰，絕對不能加 NEXT_PUBLIC_
 VAPID_SUBJECT                  mailto:聯絡信箱，推播服務商要求
 CRON_SECRET                    保護排程端點

@@ -184,7 +184,7 @@ export default function ReminderToggle({
       <div>
         <h2 className="text-sm font-semibold text-slate-900">每日記帳提醒</h2>
         <p className="mt-0.5 text-xs text-slate-400">
-          每晚 22:00 提醒你記帳。當天已經記過就不會打擾。
+          每晚 22:00 固定提醒你記帳，不管當天記過沒有——晚餐和宵夜常常是漏掉的那幾筆。
         </p>
       </div>
 

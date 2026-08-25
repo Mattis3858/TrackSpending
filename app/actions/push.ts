@@ -6,7 +6,7 @@
  */
 
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaUnscoped } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
 import { describeDevice } from "@/lib/push";
 import type { ActionResult } from "./transactions";
@@ -28,26 +28,37 @@ export async function savePushSubscription(
 
   const ua = (await headers()).get("user-agent") ?? "";
 
-  // endpoint 是唯一的，同一台裝置重複訂閱會覆寫而不是新增。
-  // 換帳號登入時 userId 也會跟著更新，避免推播寄到前一個使用者。
-  await prisma.pushSubscription.upsert({
-    where: { endpoint: input.endpoint },
-    update: {
-      userId,
-      p256dh: input.p256dh,
-      auth: input.auth,
-      userAgent: describeDevice(ua),
-    },
-    create: {
-      userId,
-      endpoint: input.endpoint,
-      p256dh: input.p256dh,
-      auth: input.auth,
-      userAgent: describeDevice(ua),
-    },
-  });
+  try {
+    // 先釋放這個 endpoint 上既有的訂閱。它可能屬於之前在同一台裝置
+    // 登入過的其他使用者——實際持有裝置的人就該擁有它的推播，否則
+    // 提醒會繼續寄給前一個人。
+    //
+    // 這一步刻意跨租戶（用 endpoint 而不是 userId 當條件），所以走
+    // prismaUnscoped。它只刪不讀，不會洩漏任何資料。
+    await prismaUnscoped.pushSubscription.deleteMany({
+      where: { endpoint: input.endpoint },
+    });
 
-  return { ok: true };
+    await prisma.pushSubscription.create({
+      data: {
+        userId,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        userAgent: describeDevice(ua),
+      },
+    });
+
+    return { ok: true };
+  } catch (error) {
+    // 正式環境的 Server Component 錯誤會被 React 換成看不懂的代碼
+    // （#441），所以這裡自己攔下來回傳可讀訊息。
+    console.error("savePushSubscription failed", error);
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "訂閱失敗",
+    };
+  }
 }
 
 export async function deletePushSubscription(

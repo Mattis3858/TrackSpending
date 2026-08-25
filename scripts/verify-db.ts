@@ -1,4 +1,4 @@
-import { prisma } from "../lib/prisma";
+import { prisma, prismaUnscoped } from "../lib/prisma";
 import { getFrequentCategoryIds, getHoldings, getTransactionsForMonth } from "../lib/queries";
 import { fetchQuotes, fetchUsQuotes } from "../lib/quotes";
 import { getCategories } from "../lib/queries";
@@ -154,6 +154,28 @@ async function main() {
       await prisma.category.deleteMany({ where: { userId: OTHER } });
       console.log("🧹 已清除第二使用者的測試資料");
     }
+
+    // ── 推播訂閱：實際跑一次 savePushSubscription 會做的資料庫操作
+    //    （之前把 PushSubscription 加進租戶防線卻沒跑過這條路徑，結果被誤擋）
+    const EP = "https://fcm.googleapis.com/fcm/send/__verify_push__";
+    let pushOk = false;
+    let pushErr = "";
+    try {
+      await prismaUnscoped.pushSubscription.deleteMany({ where: { endpoint: EP } });
+      await prisma.pushSubscription.create({
+        data: { userId, endpoint: EP, p256dh: "x", auth: "y", userAgent: "驗證" },
+      });
+      const found = await prisma.pushSubscription.findFirst({
+        where: { endpoint: EP, userId }, select: { id: true },
+      });
+      pushOk = found !== null;
+    } catch (e) {
+      pushErr = (e as Error).name + ": " + (e as Error).message.slice(0, 60);
+    } finally {
+      await prismaUnscoped.pushSubscription.deleteMany({ where: { endpoint: EP } });
+    }
+    results.push(["推播訂閱流程不被租戶防線誤擋", pushOk ? "PASS" : "FAIL", ""]);
+    console.log((pushOk ? "✅" : "❌") + " 推播訂閱流程不被租戶防線誤擋" + (pushErr ? "  → " + pushErr : ""));
 
     console.log(`\n整體：${results.every((r) => r[1] === "PASS") ? "全部通過" : "有失敗項目"}`);
   } finally {

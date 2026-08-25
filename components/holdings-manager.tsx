@@ -173,7 +173,7 @@ export default function HoldingsManager({
           <input
             value={shares}
             onChange={(e) => setShares(e.target.value)}
-            placeholder="股數"
+            placeholder="股數（可到小數第 5 位）"
             inputMode="decimal"
             className={inputClass}
           />
@@ -261,7 +261,7 @@ export default function HoldingsManager({
                       <input
                         value={editShares}
                         onChange={(e) => setEditShares(e.target.value)}
-                        placeholder="股數"
+                        placeholder="股數（可到小數第 5 位）"
                         inputMode="decimal"
                         className={inputClass}
                       />

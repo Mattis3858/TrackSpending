@@ -89,8 +89,8 @@ export const settingsInputSchema = z.object({
 
 export type SettingsInput = z.infer<typeof settingsInputSchema>;
 
-/** 股數：允許到小數第 4 位（零股） */
-const SHARES_RE = /^[0-9]+([.][0-9]{1,4})?$/;
+/** 股數：允許到小數第 5 位。複委託的零股常有 5 位小數 */
+const SHARES_RE = /^[0-9]+([.][0-9]{1,5})?$/;
 
 export const holdingInputSchema = z.object({
   symbol: z
@@ -109,7 +109,7 @@ export const holdingInputSchema = z.object({
       return;
     }
     if (!SHARES_RE.test(v)) {
-      ctx.addIssue({ code: "custom", message: "股數只能是數字，最多四位小數" });
+      ctx.addIssue({ code: "custom", message: "股數只能是數字，最多五位小數" });
       return;
     }
     if (!money(v).greaterThan(0)) {

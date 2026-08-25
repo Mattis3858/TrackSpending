@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transactionInputSchema } from "./validation";
+import { holdingInputSchema, transactionInputSchema } from "./validation";
 
 function parseAmount(amount: string) {
   return transactionInputSchema.safeParse({
@@ -94,5 +94,38 @@ describe("其他欄位", () => {
       categoryId: "cat-1",
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe("持股股數驗證", () => {
+  const parse = (shares: string) =>
+    holdingInputSchema.safeParse({ symbol: "VOO", shares, cost: "1000" });
+
+  const messages = (shares: string) => {
+    const r = parse(shares);
+    return r.success ? [] : r.error.issues.map((i) => i.message);
+  };
+
+  it("允許到小數第 5 位（複委託零股）", () => {
+    expect(messages("1.23456")).toEqual([]);
+    expect(messages("0.00001")).toEqual([]);
+    expect(messages("1.7583")).toEqual([]);
+    expect(messages("2400")).toEqual([]);
+  });
+
+  it("超過 5 位小數被擋下", () => {
+    expect(messages("1.234567")).toEqual(["股數只能是數字，最多五位小數"]);
+  });
+
+  it("0 與負數不通過", () => {
+    expect(messages("0")).toEqual(["股數必須大於 0"]);
+    expect(messages("0.00000")).toEqual(["股數必須大於 0"]);
+    expect(messages("-1.5")).toEqual(["股數只能是數字，最多五位小數"]);
+  });
+
+  it("空值與亂碼不會拋錯", () => {
+    expect(() => parse("")).not.toThrow();
+    expect(messages("")).toEqual(["請輸入股數"]);
+    expect(messages("abc")).toEqual(["股數只能是數字，最多五位小數"]);
   });
 });

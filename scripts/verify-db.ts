@@ -13,7 +13,7 @@ const YM = "2099-09"; // 用未來月份，不會撞到真實資料
 
 async function main() {
   const cats = await prisma.category.findMany({
-    where: { userId, name: { in: ["餐飲", "儲蓄", "就業收入"] } },
+    where: { userId, name: { in: ["餐食", "儲蓄", "就業收入"] } },
     select: { id: true, name: true, kind: true },
   });
   const byName = Object.fromEntries(cats.map((c) => [c.name, c]));
@@ -29,7 +29,7 @@ async function main() {
     ...["33.33", "33.33", "33.33"].map((amount) =>
       prisma.transaction.create({
         data: { userId, date: toDbDate(`${YM}-15`), type: "EXPENSE" as const,
-                amount, categoryId: byName["餐飲"].id, note: "__verify__" },
+                amount, categoryId: byName["餐食"].id, note: "__verify__" },
       }),
     ),
     // 儲蓄：算支出但不算消費
@@ -55,7 +55,7 @@ async function main() {
       ["TRANSFER 未計入支出", s.totalExpense.toFixed(2) === "20099.99" ? "PASS" : "FAIL", s.totalExpense.toFixed(2)],
       ["儲蓄不算消費支出", s.savingsExpense.toFixed(2) === "20000.00" ? "PASS" : "FAIL", s.savingsExpense.toFixed(2)],
       ["儲蓄率 = (50000-99.99)/50000", s.savingsRate !== null && Math.abs(s.savingsRate - 0.9980002) < 1e-6 ? "PASS" : "FAIL", formatPercent(s.savingsRate, 2)],
-      ["圓餅圖只有餐飲（排除儲蓄）", JSON.stringify(expenseByCategory(txs).map((i) => i.name)) === '["餐飲"]' ? "PASS" : "FAIL", expenseByCategory(txs).map((i) => i.name).join("/")],
+      ["圓餅圖只有餐食（排除儲蓄）", JSON.stringify(expenseByCategory(txs).map((i) => i.name)) === '["餐食"]' ? "PASS" : "FAIL", expenseByCategory(txs).map((i) => i.name).join("/")],
     ];
 
     console.log();
@@ -176,6 +176,32 @@ async function main() {
     }
     results.push(["推播訂閱流程不被租戶防線誤擋", pushOk ? "PASS" : "FAIL", ""]);
     console.log((pushOk ? "✅" : "❌") + " 推播訂閱流程不被租戶防線誤擋" + (pushErr ? "  → " + pushErr : ""));
+
+    // ── 對帳：實際跑一次 createAdjustment 會做的資料庫操作
+    const adjCat = await prisma.category.findFirst({
+      where: { userId, name: "差額調整", type: "EXPENSE" },
+      select: { id: true },
+    });
+    let adjOk = false;
+    let adjErr = "";
+    if (!adjCat) {
+      adjErr = "找不到「差額調整」支出分類";
+    } else {
+      try {
+        const made = await prisma.transaction.create({
+          data: { userId, date: toDbDate(`${YM}-15`), type: "EXPENSE",
+                  amount: "1500.00", categoryId: adjCat.id, note: "__verify_adjust__" },
+        });
+        const back = await getTransactionsForMonth(userId, YM);
+        const found = back.find((t) => t.id === made.id);
+        adjOk = found?.amount === "1500.00" && found?.category?.name === "差額調整";
+        await prisma.transaction.deleteMany({ where: { id: made.id, userId } });
+      } catch (e) {
+        adjErr = (e as Error).name + ": " + (e as Error).message.slice(0, 60);
+      }
+    }
+    results.push(["對帳調整交易可建立且被正確歸類", adjOk ? "PASS" : "FAIL", ""]);
+    console.log((adjOk ? "✅" : "❌") + " 對帳調整交易可建立且被正確歸類" + (adjErr ? "  → " + adjErr : ""));
 
     console.log(`\n整體：${results.every((r) => r[1] === "PASS") ? "全部通過" : "有失敗項目"}`);
   } finally {

@@ -74,6 +74,18 @@ export default async function SettingsPage() {
               <span className="text-slate-400">›</span>
             </Link>
             <Link
+              href="/settings/reconcile"
+              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+            >
+              <span>
+                對帳
+                <span className="block text-xs text-slate-400">
+                  實際餘額跟系統對不上時，補一筆調整
+                </span>
+              </span>
+              <span className="text-slate-400">›</span>
+            </Link>
+            <Link
               href="/settings/categories"
               className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
             >

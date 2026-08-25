@@ -20,7 +20,8 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: "額外收入", type: "INCOME", kind: "VARIABLE", color: "#14b8a6" },
   { name: "房租", type: "EXPENSE", kind: "FIXED", color: "#6366f1" },
   { name: "水電瓦斯", type: "EXPENSE", kind: "FIXED", color: "#0ea5e9" },
-  { name: "餐飲", type: "EXPENSE", kind: "VARIABLE", color: "#f59e0b" },
+  { name: "餐食", type: "EXPENSE", kind: "VARIABLE", color: "#f59e0b" },
+  { name: "飲料", type: "EXPENSE", kind: "VARIABLE", color: "#06b6d4" },
   { name: "交通", type: "EXPENSE", kind: "VARIABLE", color: "#3b82f6" },
   { name: "娛樂", type: "EXPENSE", kind: "VARIABLE", color: "#ec4899" },
   { name: "保險", type: "EXPENSE", kind: "FIXED", color: "#8b5cf6" },
@@ -29,4 +30,10 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: "儲蓄", type: "EXPENSE", kind: "SAVINGS", color: "#10b981" },
   { name: "投資", type: "EXPENSE", kind: "INVESTMENT", color: "#059669" },
   { name: "其他", type: "EXPENSE", kind: "VARIABLE", color: "#94a3b8" },
+  // 對帳用：實際餘額跟系統算出來的對不上時，補一筆讓兩邊一致。
+  // 收入與支出兩個方向都要有（多了記 INCOME、少了記 EXPENSE）。
+  // 刻意是 VARIABLE：對不上通常就是漏記的消費，算進消費才會讓
+  // 「現金 = 收入 − 消費 − 投資」保持成立。
+  { name: "差額調整", type: "EXPENSE", kind: "VARIABLE", color: "#64748b" },
+  { name: "差額調整", type: "INCOME", kind: "VARIABLE", color: "#64748b" },
 ];

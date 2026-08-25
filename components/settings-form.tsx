@@ -46,12 +46,6 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
 
   const [startingCash, setStartingCash] = useState(trimAmount(setting.startingCash));
   const [cashUsd, setCashUsd] = useState(trimAmount(setting.cashUsd));
-  const [startingInvestment, setStartingInvestment] = useState(
-    trimAmount(setting.startingInvestment),
-  );
-  const [investmentValue, setInvestmentValue] = useState(
-    trimAmount(setting.investmentValue),
-  );
   const [monthlyBudget, setMonthlyBudget] = useState(trimAmount(setting.monthlyBudget));
   const [targetSavingsRate, setTargetSavingsRate] = useState(
     setting.targetSavingsRate === null ? "" : String(setting.targetSavingsRate),
@@ -69,8 +63,6 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
       const result = await onSaveAction({
         startingCash,
         cashUsd,
-        startingInvestment,
-        investmentValue,
         monthlyBudget,
         targetSavingsRate: targetSavingsRate === "" ? null : Number(targetSavingsRate),
         payday: payday === "" ? null : Number(payday),
@@ -92,7 +84,7 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">開始記帳前的資產</h2>
           <p className="mt-0.5 text-xs text-slate-400">
-            系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。
+            系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。投資部位不用填在這裡——到「持股」頁登錄，市值會用公開報價自動計算。
           </p>
         </div>
 
@@ -118,46 +110,6 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
           />
         </Field>
 
-        <Field label="投資成本" hint="已投入股票 / ETF 的本金總額">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0"
-            value={startingInvestment}
-            onChange={(e) => setStartingInvestment(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-      </section>
-
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900">投資現值</h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            登錄「持股」之後這裡就不用管了，系統會自動用公開報價算市值。沒有持股紀錄時才會用到這個欄位。
-          </p>
-        </div>
-
-        <Field label="目前市值">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="留空則用成本計算"
-            value={investmentValue}
-            onChange={(e) => setInvestmentValue(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-
-        {setting.investmentValueAt && (
-          <p className="text-xs text-slate-400">
-            最後更新：
-            {new Intl.DateTimeFormat("zh-TW", {
-              timeZone: "Asia/Taipei",
-              dateStyle: "medium",
-            }).format(setting.investmentValueAt)}
-          </p>
-        )}
       </section>
 
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">

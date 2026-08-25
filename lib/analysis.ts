@@ -132,10 +132,6 @@ export type AssetSummary = {
 export function assetSummary(input: {
   /** 開始記帳前手上的現金 */
   startingCash: MoneyInput;
-  /** 開始記帳前的投資成本 */
-  startingInvestment: MoneyInput;
-  /** 使用者手動填的投資現值 */
-  investmentValue?: MoneyInput | null;
   /** 開始記帳以來的總收入 */
   allTimeIncome: MoneyInput;
   /** 開始記帳以來的總消費支出（不含儲蓄與投資） */
@@ -149,9 +145,9 @@ export function assetSummary(input: {
   /** 美元匯率，用來把美元現金與美股併入台幣合計 */
   usdToTwd?: MoneyInput | null;
   /**
-   * 有記錄持股明細時，投資部位改用持股的成本與市值。
-   * 傳了這個就會忽略 startingInvestment / investmentValue，
-   * 也不會再把 allTimeInvestment 加進成本（持股成本本身已經包含了）。
+   * 投資部位的唯一來源：持股明細算出來的成本與市值。
+   * 沒有持股紀錄時傳 null，投資成本就退回「記帳期間投入投資的金額」，
+   * 而且沒有市值（不能假裝知道市價）。
    * cost / value 是台幣合計；byCurrency 是分幣別的原幣金額。
    */
   portfolio?: {
@@ -175,13 +171,10 @@ export function assetSummary(input: {
   const usePortfolio = Boolean(input.portfolio);
   const investmentCost = usePortfolio
     ? money(input.portfolio!.cost)
-    : money(input.startingInvestment).plus(invested);
+    : invested;
 
-  const investmentValue = usePortfolio
-    ? money(input.portfolio!.value)
-    : input.investmentValue === null || input.investmentValue === undefined
-      ? null
-      : money(input.investmentValue);
+  // 沒有持股就沒有市值可言，不用成本冒充現值
+  const investmentValue = usePortfolio ? money(input.portfolio!.value) : null;
 
   const avg =
     input.avgMonthlyConsumption === null || input.avgMonthlyConsumption === undefined
@@ -199,7 +192,7 @@ export function assetSummary(input: {
 
   const investmentTwd = input.portfolio?.byCurrency
     ? money(input.portfolio.byCurrency.twd.value)
-    : (usePortfolio ? money(input.portfolio!.value) : (investmentValue ?? investmentCost));
+    : (investmentValue ?? investmentCost);
   const investmentUsd = input.portfolio?.byCurrency
     ? money(input.portfolio.byCurrency.usd.value)
     : ZERO;

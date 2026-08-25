@@ -22,24 +22,9 @@ export async function saveSettings(raw: unknown): Promise<ActionResult> {
   }
   const input = parsed.data;
 
-  const investmentValue = optionalAmount(input.investmentValue);
-  const existing = await prisma.userSetting.findUnique({
-    where: { userId },
-    select: { investmentValue: true },
-  });
-
-  // 投資現值有變動才更新時間戳，否則「最後更新於」會每次存檔都被刷新
-  const valueChanged =
-    investmentValue !== (existing?.investmentValue?.toString() ?? null);
-
   const data = {
     startingCash: optionalAmount(input.startingCash) ?? "0",
     cashUsd: optionalAmount(input.cashUsd) ?? "0",
-    startingInvestment: optionalAmount(input.startingInvestment) ?? "0",
-    investmentValue,
-    ...(valueChanged
-      ? { investmentValueAt: investmentValue ? new Date() : null }
-      : {}),
     monthlyBudget: optionalAmount(input.monthlyBudget),
     targetSavingsRate: input.targetSavingsRate ?? null,
     payday: input.payday ?? null,

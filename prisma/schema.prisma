@@ -64,11 +64,9 @@ model UserSetting {
   /// 外幣現金（美元），例如複委託帳戶裡還沒投入的餘額。
   /// 交易紀錄都是台幣，所以這個值由使用者自己維護。
   cashUsd            Decimal   @default(0) @db.Decimal(12, 2)
-  /// 開始記帳前已投入的投資成本
-  startingInvestment Decimal   @default(0) @db.Decimal(12, 2)
-  /// 投資現值，由使用者手動更新（系統無法得知市價）
-  investmentValue    Decimal?  @db.Decimal(12, 2)
-  investmentValueAt  DateTime?
+  // 投資部位一律以 Holding（持股明細）為單一事實來源。
+  // 原本的 startingInvestment / investmentValue 已移除：兩個來源會讓
+  // 使用者改了設定卻發現數字不動，而且持股 + 即時報價是它們的上位替代。
 
   /// 月消費預算。沒設定時用「近期收入 x (1 - 目標儲蓄率)」推算
   monthlyBudget     Decimal? @db.Decimal(10, 2)

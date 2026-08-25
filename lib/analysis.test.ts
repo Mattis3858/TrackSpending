@@ -129,19 +129,22 @@ describe("budgetFromTarget", () => {
   });
 });
 
+
 describe("assetSummary — 資產與緊急預備金", () => {
   const base = {
     startingCash: "152432",
-    startingInvestment: "455086",
     allTimeIncome: "0",
     allTimeConsumption: "0",
     allTimeInvestment: "0",
   };
+  const PORTFOLIO = { cost: "455086", value: "704975" };
 
-  it("還沒記帳時，現金與投資成本就是起始值", () => {
+  it("還沒記帳也沒有持股時，現金就是起始值、投資為 0", () => {
     const a = assetSummary(base);
     expect(a.cash.toFixed(0)).toBe("152432");
-    expect(a.investmentCost.toFixed(0)).toBe("455086");
+    expect(a.investmentCost.toFixed(0)).toBe("0");
+    // 沒有持股就沒有市值可言，不用成本冒充
+    expect(a.investmentValue).toBeNull();
   });
 
   it("投資的錢要從現金扣掉，否則緊急預備金會虛胖", () => {
@@ -155,7 +158,8 @@ describe("assetSummary — 資產與緊急預備金", () => {
 
     // 現金：152,432 + (50,000 − 30,000) − 20,000 = 152,432（沒變，錢轉去股票了）
     expect(a.cash.toFixed(0)).toBe("152432");
-    expect(a.investmentCost.toFixed(0)).toBe("475086");
+    // 沒有持股明細時，投資成本就是記帳期間投入的金額
+    expect(a.investmentCost.toFixed(0)).toBe("20000");
   });
 
   it("沒投資時，存下來的錢全部留在現金", () => {
@@ -163,7 +167,6 @@ describe("assetSummary — 資產與緊急預備金", () => {
       ...base,
       allTimeIncome: "50000",
       allTimeConsumption: "30000",
-      allTimeInvestment: "0",
     });
     expect(a.cash.toFixed(0)).toBe("172432");
   });
@@ -171,9 +174,10 @@ describe("assetSummary — 資產與緊急預備金", () => {
   it("緊急預備金月數 = 現金 ÷ 月均消費，不含投資", () => {
     const a = assetSummary({
       ...base,
+      portfolio: PORTFOLIO,
       avgMonthlyConsumption: "30000",
     });
-    // 152,432 / 30,000 = 5.08 個月。若把 455,086 的股票算進去會變成 20 個月，指標就失去意義
+    // 152,432 / 30,000 = 5.08。若把 455,086 的股票算進去會變成 20 個月，指標就失去意義
     expect(a.emergencyMonths).toBeCloseTo(5.08, 2);
   });
 
@@ -182,17 +186,111 @@ describe("assetSummary — 資產與緊急預備金", () => {
     expect(assetSummary({ ...base, avgMonthlyConsumption: "0" }).emergencyMonths).toBeNull();
   });
 
-  it("有填投資現值時算得出未實現損益，總資產用現值", () => {
-    const a = assetSummary({ ...base, investmentValue: "704975" });
+  it("有持股時算得出未實現損益，總資產用市值", () => {
+    const a = assetSummary({ ...base, portfolio: PORTFOLIO });
     expect(a.unrealizedGain?.toFixed(0)).toBe("249889");
     expect(a.netWorth.toFixed(0)).toBe("857407"); // 152,432 + 704,975
   });
 
-  it("沒填投資現值時，總資產退而用成本計算", () => {
+  it("完全沒有持股時，總資產只有現金", () => {
     const a = assetSummary(base);
-    expect(a.investmentValue).toBeNull();
     expect(a.unrealizedGain).toBeNull();
-    expect(a.netWorth.toFixed(0)).toBe("607518"); // 152,432 + 455,086
+    expect(a.netWorth.toFixed(0)).toBe("152432");
+  });
+});
+
+describe("assetSummary — 持股是投資部位的唯一來源", () => {
+  const base = {
+    startingCash: "152432",
+    allTimeIncome: "50000",
+    allTimeConsumption: "30000",
+    allTimeInvestment: "20000",
+  };
+
+  it("持股成本已含記帳期間投入的錢，不可以再加 allTimeInvestment", () => {
+    const a = assetSummary({
+      ...base,
+      portfolio: { cost: "2045000", value: "2462325" },
+    });
+
+    expect(a.investmentCost.toFixed(0)).toBe("2045000");
+    expect(a.investmentCost.toFixed(0)).not.toBe("2065000");
+    expect(a.investmentValue?.toFixed(0)).toBe("2462325");
+  });
+
+  it("現金的算法不受持股影響（投資的錢仍要從現金扣掉）", () => {
+    const withPortfolio = assetSummary({
+      ...base,
+      portfolio: { cost: "2045000", value: "2462325" },
+    });
+    const without = assetSummary(base);
+
+    expect(withPortfolio.cash.toFixed(0)).toBe(without.cash.toFixed(0));
+    expect(withPortfolio.cash.toFixed(0)).toBe("152432");
+  });
+});
+
+describe("assetSummary — 現金與投資依幣別拆分", () => {
+  const base = {
+    startingCash: "152432",
+    allTimeIncome: "0",
+    allTimeConsumption: "0",
+    allTimeInvestment: "0",
+  };
+  const FX = "31.798233";
+
+  it("台幣現金與美元現金分開保留，合計換算台幣", () => {
+    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: FX });
+
+    expect(a.cash.toFixed(0)).toBe("152432");
+    expect(a.cashUsd.toFixed(2)).toBe("10.35");
+    expect(a.cashTotalTwd.toFixed(2)).toBe("152761.11"); // 152,432 + 10.35 x 31.798233
+  });
+
+  it("緊急預備金用換算後的總現金（美元現金也是隨時可動用的）", () => {
+    const withUsd = assetSummary({
+      ...base,
+      cashUsd: "10.35",
+      usdToTwd: FX,
+      avgMonthlyConsumption: "30000",
+    });
+    const without = assetSummary({ ...base, avgMonthlyConsumption: "30000" });
+
+    expect(withUsd.emergencyMonths!).toBeGreaterThan(without.emergencyMonths!);
+  });
+
+  it("缺匯率時美元現金不併入合計，也不亂猜", () => {
+    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: null });
+
+    expect(a.cashUsd.toFixed(2)).toBe("10.35");
+    expect(a.cashTotalTwd.toFixed(0)).toBe("152432");
+    expect(a.netWorth.toFixed(0)).toBe("152432");
+  });
+
+  it("投資依幣別拆成台股（台幣）與美股（美元）", () => {
+    const a = assetSummary({
+      ...base,
+      usdToTwd: FX,
+      portfolio: {
+        cost: "2045365",
+        value: "2454684",
+        byCurrency: {
+          twd: { cost: "2000000", value: "2410000" },
+          usd: { cost: "1426.64", value: "1405.22" },
+        },
+      },
+    });
+
+    expect(a.investmentTwd.toFixed(0)).toBe("2410000");
+    expect(a.investmentUsd.toFixed(2)).toBe("1405.22");
+    expect(a.netWorth.toFixed(0)).toBe("2607116"); // 152,432 + 2,454,684
+  });
+
+  it("沒有美元部位時，行為跟以前完全一樣", () => {
+    const a = assetSummary(base);
+    expect(a.cashUsd.toFixed(2)).toBe("0.00");
+    expect(a.cashTotalTwd.toFixed(0)).toBe(a.cash.toFixed(0));
+    expect(a.investmentUsd.toFixed(2)).toBe("0.00");
   });
 });
 
@@ -299,33 +397,37 @@ describe("categoryDelta — 分類月變化", () => {
 describe("assetSummary — 投資報酬率", () => {
   const base = {
     startingCash: "152432",
-    startingInvestment: "455086",
     allTimeIncome: "0",
     allTimeConsumption: "0",
     allTimeInvestment: "0",
   };
 
   it("報酬率 = 未實現損益 ÷ 成本", () => {
-    const a = assetSummary({ ...base, investmentValue: "704975" });
+    const a = assetSummary({
+      ...base,
+      portfolio: { cost: "455086", value: "704975" },
+    });
     // 249,889 / 455,086 = 54.91%
     expect(a.unrealizedGainRatio).toBeCloseTo(0.5491, 4);
   });
 
   it("虧損時報酬率為負", () => {
-    const a = assetSummary({ ...base, investmentValue: "400000" });
+    const a = assetSummary({
+      ...base,
+      portfolio: { cost: "455086", value: "400000" },
+    });
     expect(a.unrealizedGain?.toFixed(0)).toBe("-55086");
     expect(a.unrealizedGainRatio).toBeCloseTo(-0.121, 3);
   });
 
-  it("沒填現值時報酬率為 null（不能假裝知道市價）", () => {
+  it("沒有持股時報酬率為 null（不能假裝知道市價）", () => {
     expect(assetSummary(base).unrealizedGainRatio).toBeNull();
   });
 
   it("成本為 0 時報酬率為 null，不會除以零", () => {
     const a = assetSummary({
       ...base,
-      startingInvestment: "0",
-      investmentValue: "5000",
+      portfolio: { cost: "0", value: "5000" },
     });
     expect(a.unrealizedGain?.toFixed(0)).toBe("5000");
     expect(a.unrealizedGainRatio).toBeNull();
@@ -409,45 +511,6 @@ describe("valuePortfolio — 持股估值", () => {
   });
 });
 
-describe("assetSummary — 有持股明細時以持股為準", () => {
-  const base = {
-    startingCash: "152432",
-    startingInvestment: "455086",
-    investmentValue: "704975",
-    allTimeIncome: "50000",
-    allTimeConsumption: "30000",
-    allTimeInvestment: "20000",
-  };
-
-  it("傳入 portfolio 時，忽略手動的投資設定值", () => {
-    const a = assetSummary({
-      ...base,
-      portfolio: { cost: "2045000", value: "2462325" },
-    });
-
-    expect(a.investmentCost.toFixed(0)).toBe("2045000");
-    expect(a.investmentValue?.toFixed(0)).toBe("2462325");
-    // 持股成本已含記帳期間投入的錢，不可以再把 allTimeInvestment 加上去
-    expect(a.investmentCost.toFixed(0)).not.toBe("2065000");
-  });
-
-  it("現金的算法不受 portfolio 影響（投資的錢仍要從現金扣掉）", () => {
-    const withPortfolio = assetSummary({
-      ...base,
-      portfolio: { cost: "2045000", value: "2462325" },
-    });
-    const without = assetSummary(base);
-
-    expect(withPortfolio.cash.toFixed(0)).toBe(without.cash.toFixed(0));
-    expect(withPortfolio.cash.toFixed(0)).toBe("152432");
-  });
-
-  it("沒有持股時維持原本行為", () => {
-    const a = assetSummary(base);
-    expect(a.investmentCost.toFixed(0)).toBe("475086"); // 455,086 + 20,000
-    expect(a.investmentValue?.toFixed(0)).toBe("704975");
-  });
-});
 
 describe("valuePortfolio — 複委託（美股）多幣別", () => {
   const mixed = [
@@ -523,68 +586,3 @@ describe("valuePortfolio — 複委託（美股）多幣別", () => {
   });
 });
 
-describe("assetSummary — 現金與投資依幣別拆分", () => {
-  const base = {
-    startingCash: "152432",
-    startingInvestment: "0",
-    allTimeIncome: "0",
-    allTimeConsumption: "0",
-    allTimeInvestment: "0",
-  };
-  const FX = "31.798233";
-
-  it("台幣現金與美元現金分開保留，合計換算台幣", () => {
-    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: FX });
-
-    expect(a.cash.toFixed(0)).toBe("152432"); // 台幣部分不變
-    expect(a.cashUsd.toFixed(2)).toBe("10.35"); // 美元原幣保留
-    expect(a.cashTotalTwd.toFixed(2)).toBe("152761.11"); // 152,432 + 10.35 x 31.798233
-  });
-
-  it("緊急預備金用換算後的總現金（美元現金也是隨時可動用的）", () => {
-    const withUsd = assetSummary({
-      ...base,
-      cashUsd: "10.35",
-      usdToTwd: FX,
-      avgMonthlyConsumption: "30000",
-    });
-    const without = assetSummary({ ...base, avgMonthlyConsumption: "30000" });
-
-    expect(withUsd.emergencyMonths!).toBeGreaterThan(without.emergencyMonths!);
-  });
-
-  it("缺匯率時美元現金不併入合計，也不亂猜", () => {
-    const a = assetSummary({ ...base, cashUsd: "10.35", usdToTwd: null });
-
-    expect(a.cashUsd.toFixed(2)).toBe("10.35"); // 原幣仍在
-    expect(a.cashTotalTwd.toFixed(0)).toBe("152432"); // 但沒被加進去
-    expect(a.netWorth.toFixed(0)).toBe("152432");
-  });
-
-  it("投資依幣別拆成台股（台幣）與美股（美元）", () => {
-    const a = assetSummary({
-      ...base,
-      usdToTwd: FX,
-      portfolio: {
-        cost: "2045365",
-        value: "2454684",
-        byCurrency: {
-          twd: { cost: "2000000", value: "2410000" },
-          usd: { cost: "1426.64", value: "1405.22" },
-        },
-      },
-    });
-
-    expect(a.investmentTwd.toFixed(0)).toBe("2410000"); // 台股，台幣
-    expect(a.investmentUsd.toFixed(2)).toBe("1405.22"); // 美股，美元原幣
-    // 總資產仍是全部換算台幣
-    expect(a.netWorth.toFixed(0)).toBe("2607116"); // 152,432 + 2,454,684
-  });
-
-  it("沒有美元部位時，行為跟以前完全一樣", () => {
-    const a = assetSummary(base);
-    expect(a.cashUsd.toFixed(2)).toBe("0.00");
-    expect(a.cashTotalTwd.toFixed(0)).toBe(a.cash.toFixed(0));
-    expect(a.investmentUsd.toFixed(2)).toBe("0.00");
-  });
-});

@@ -79,10 +79,6 @@ export const settingsInputSchema = z.object({
   startingCash: optionalMoneyField("現金"),
   /** 外幣現金（美元） */
   cashUsd: optionalMoneyField("外幣現金"),
-  /** 開始記帳前的投資成本 */
-  startingInvestment: optionalMoneyField("投資成本"),
-  /** 投資現值，手動更新 */
-  investmentValue: optionalMoneyField("投資現值"),
   /** 月消費預算，留空就用目標儲蓄率推算 */
   monthlyBudget: optionalMoneyField("月預算"),
   targetSavingsRate: z

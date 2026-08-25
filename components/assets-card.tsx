@@ -18,8 +18,6 @@ type Props = {
   hidden: boolean;
   startingCash: string;
   cashUsd: string;
-  startingInvestment: string;
-  investmentValue: string | null;
   allTimeIncome: string;
   allTimeConsumption: string;
   allTimeInvestment: string;
@@ -95,8 +93,6 @@ export default async function AssetsCard(props: Props) {
 
   const assets = assetSummary({
     startingCash: props.startingCash,
-    startingInvestment: props.startingInvestment,
-    investmentValue: props.investmentValue,
     allTimeIncome: props.allTimeIncome,
     allTimeConsumption: props.allTimeConsumption,
     allTimeInvestment: props.allTimeInvestment,
@@ -191,7 +187,7 @@ export default async function AssetsCard(props: Props) {
                 ? `　取不到美元匯率，${portfolio.missingFx} 檔美股未併入合計。`
                 : "",
             ].join("")
-          : "　投資現值目前是手動維護的，到「持股」頁登錄持股就會自動更新。"}
+          : "　到「持股」頁登錄持股，投資市值就會用公開報價自動計算。"}
       </p>
     </section>
   );

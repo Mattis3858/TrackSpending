@@ -103,6 +103,9 @@ export default function RecurringManager({
           <p className="text-sm font-medium text-slate-600">新增固定支出</p>
           <p className="mt-0.5 text-xs text-slate-400">
             房租、健身房、訂閱這類金額固定的填精確值；水電這類會浮動的填近期的概數——大致正確遠勝過完全不算。
+            <span className="mt-1 block">
+              <strong>兩個月繳一次的（台電、雙月網路費）填月均值</strong>，例如雙月 2,400 就填 1,200。非繳費月預留的那筆，正好是在幫你為下期帳單存錢。
+            </span>
           </p>
         </div>
 

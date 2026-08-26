@@ -27,6 +27,9 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: "飲料", type: "EXPENSE", kind: "VARIABLE", color: "#06b6d4" },
   { name: "交通", type: "EXPENSE", kind: "VARIABLE", color: "#3b82f6" },
   { name: "日常用品", type: "EXPENSE", kind: "VARIABLE", color: "#84cc16" },
+  { name: "水果", type: "EXPENSE", kind: "VARIABLE", color: "#4d7c0f" },
+  // 金額不規則、偶爾很大筆，跟娛樂之類的放在一起看會失去意義
+  { name: "醫療", type: "EXPENSE", kind: "VARIABLE", color: "#b91c1c" },
   { name: "娛樂", type: "EXPENSE", kind: "VARIABLE", color: "#ec4899" },
   { name: "保險", type: "EXPENSE", kind: "FIXED", color: "#8b5cf6" },
   // 儲蓄與投資都不計入「消費支出」。見 SPEC 5.2

@@ -17,6 +17,9 @@ type Props = {
 
 type EntryType = "EXPENSE" | "INCOME";
 
+/** 滑入／滑出的時間，要跟 className 裡的 duration-300 一致 */
+const SHEET_MS = 300;
+
 export default function QuickAddSheet({
   categories,
   frequentIds,
@@ -26,7 +29,12 @@ export default function QuickAddSheet({
   onSubmitAction,
 }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+
+  // 兩個狀態才做得出「滑下去之後才消失」：
+  //   mounted 決定在不在 DOM 裡，visible 決定滑上來還是滑下去。
+  //   只用一個布林值的話，關閉時元素會立刻被移除，動畫沒機會播。
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [pending, setPending] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,18 +58,30 @@ export default function QuickAddSheet({
     setError(null);
   }, [lastUsedCategoryId, today]);
 
+  const openSheet = useCallback(() => {
+    setMounted(true);
+    // 要等瀏覽器先以「還在下面」的狀態畫過一幀，轉場才有起點。
+    // 只用一次 rAF 在部分瀏覽器會來不及，所以疊兩層。
+    requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+  }, []);
+
   const close = useCallback(() => {
-    setOpen(false);
-    reset();
+    setVisible(false);
+    // 等滑下去的動畫跑完再卸載，時間要跟 CSS 的 duration 一致
+    setTimeout(() => {
+      setMounted(false);
+      reset();
+    }, SHEET_MS);
   }, [reset]);
 
   // 開啟時鎖住背景捲動，並把游標放到金額欄位（手機會直接彈出數字鍵盤）
   useEffect(() => {
-    if (!open) return;
+    if (!mounted) return;
 
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const timer = setTimeout(() => amountRef.current?.focus(), 60);
+    // 等滑上來之後再 focus，否則鍵盤彈出會打斷動畫
+    const timer = setTimeout(() => amountRef.current?.focus(), SHEET_MS);
 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") close();
@@ -73,7 +93,7 @@ export default function QuickAddSheet({
       clearTimeout(timer);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, close]);
+  }, [mounted, visible, close]);
 
   const sameType = categories.filter((c) => c.type === type);
 
@@ -88,7 +108,7 @@ export default function QuickAddSheet({
         ].slice(0, 6)
       : sameType;
 
-  const visible = showAll || type === "INCOME" ? sameType : frequent;
+  const visibleCategories = showAll || type === "INCOME" ? sameType : frequent;
   const hasMore = type === "EXPENSE" && sameType.length > frequent.length;
 
   function switchType(next: EntryType) {
@@ -130,7 +150,7 @@ export default function QuickAddSheet({
       {/* 懸浮按鈕：固定在底部導覽上方 */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openSheet}
         aria-label="快速記帳"
         className="fixed bottom-20 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-slate-900 text-3xl font-light text-white shadow-lg shadow-slate-900/25 transition-transform active:scale-95"
       >
@@ -145,18 +165,25 @@ export default function QuickAddSheet({
         </div>
       )}
 
-      {open && (
+      {mounted && (
         <div className="fixed inset-0 z-50">
           <button
             type="button"
             aria-label="關閉"
             onClick={close}
-            className="absolute inset-0 bg-slate-900/40"
+            className={
+              "absolute inset-0 bg-slate-900/40 transition-opacity duration-300 ease-out motion-reduce:transition-none " +
+              (visible ? "opacity-100" : "opacity-0")
+            }
           />
 
           <form
             onSubmit={submit}
-            className="absolute inset-x-0 bottom-0 mx-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl"
+            className={
+              "absolute inset-x-0 bottom-0 mx-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl " +
+              "transition-transform duration-300 ease-out motion-reduce:transition-none " +
+              (visible ? "translate-y-0" : "translate-y-full")
+            }
             style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
@@ -196,7 +223,7 @@ export default function QuickAddSheet({
 
             {/* 分類：常用的做成大按鈕 */}
             <div className="mt-5 grid grid-cols-3 gap-2">
-              {visible.map((c) => (
+              {visibleCategories.map((c) => (
                 <button
                   key={c.id}
                   type="button"

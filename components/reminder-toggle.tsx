@@ -12,6 +12,30 @@ type Props = {
   onCheck: (endpoint: string) => Promise<boolean>;
 };
 
+/**
+ * 把瀏覽器丟出的原始錯誤翻成看得懂的說明。
+ * pushManager.subscribe() 失敗時 Chrome 只會給
+ * "Registration failed - push service error"，那對使用者毫無幫助。
+ */
+function explain(error: unknown): string {
+  const err = error instanceof Error ? error : null;
+  const message = err?.message ?? String(error);
+
+  if (err?.name === "AbortError" || /push service/i.test(message)) {
+    return "瀏覽器連不上推播服務。常見原因：網路或防火牆擋住 Google 的推播服務、瀏覽器停用了推播（Brave、Vivaldi 等預設關閉），或這個瀏覽器設定檔的推播註冊壞掉了。可以試著清除本站資料後重新啟動瀏覽器；手機那台不受影響。";
+  }
+  if (err?.name === "NotAllowedError") {
+    return "通知權限被拒絕。到瀏覽器的網站設定把「通知」改成允許，再回來開啟。";
+  }
+  if (err?.name === "InvalidStateError") {
+    return "這個瀏覽器已經有一個舊的推播訂閱。清除本站資料後再試一次。";
+  }
+  if (err?.name === "NotSupportedError") {
+    return "這個瀏覽器不支援推播，或推播功能被停用了。";
+  }
+  return message;
+}
+
 type State =
   | "loading"
   | "unsupported"
@@ -106,7 +130,7 @@ export default function ReminderToggle({
         setState("off");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "開啟失敗");
+      setError(explain(e));
       setState("off");
     }
   }
@@ -125,7 +149,7 @@ export default function ReminderToggle({
       }
       setState("off");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "關閉失敗");
+      setError(explain(e));
       setState("on");
     }
   }

@@ -172,7 +172,7 @@ export default function QuickAddSheet({
             aria-label="關閉"
             onClick={close}
             className={
-              "absolute inset-0 bg-slate-900/40 transition-opacity duration-300 ease-out motion-reduce:transition-none " +
+              "absolute inset-0 bg-slate-900/40 transition-opacity duration-300 ease-out " +
               (visible ? "opacity-100" : "opacity-0")
             }
           />
@@ -181,8 +181,11 @@ export default function QuickAddSheet({
             onSubmit={submit}
             className={
               "absolute inset-x-0 bottom-0 mx-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl " +
-              "transition-transform duration-300 ease-out motion-reduce:transition-none " +
-              (visible ? "translate-y-0" : "translate-y-full")
+              // 系統開啟「減少動態效果」時只淡入淡出、不做位移。
+              // 減少動態的意思是避免大幅移動，不是完全不要過渡——
+              // 直接 transition-none 會變成瞬間出現，比滑動更突兀。
+              "transition-[transform,opacity] duration-300 ease-out motion-reduce:translate-y-0 " +
+              (visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0")
             }
             style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
           >

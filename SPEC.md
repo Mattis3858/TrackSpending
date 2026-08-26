@@ -606,6 +606,10 @@ CRON_SECRET                    保護排程端點
 
 端點同時接受 `?secret=`，所以若 Vercel 方案不支援排程，任何外部排程服務都能改呼叫 `/api/cron/reminder?secret=...` 達到一樣效果。
 
+### 瀏覽器端的兩個已知阻礙
+
+**Brave 預設關閉 Google 推播服務**（去 Google 化的一環）。Web Push 在 Chromium 系底層走的就是 FCM，關掉之後 `subscribe()` 必定以 `AbortError` 失敗，而錯誤訊息（`Registration failed - push service error`）完全看不出跟這個設定有關。解法是到 `brave://settings/privacy` 開啟並重啟瀏覽器。程式會偵測 Brave 並直接給這段說明。
+
 ### ColorOS 的注意事項
 
 OPPO 的 ColorOS 對背景程序管理激進，通知可能延遲或收不到。解法是「設定 → 電池 → 把 Chrome 排除在省電最佳化之外」。這不在程式能控制的範圍。

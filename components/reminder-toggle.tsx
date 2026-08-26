@@ -13,6 +13,16 @@ type Props = {
 };
 
 /**
+ * Brave 為了去 Google 化，預設關閉「使用 Google 服務進行推播訊息」。
+ * Web Push 在 Chromium 系底層走的就是 FCM，關掉之後 subscribe() 必定
+ * 以 AbortError 失敗——但錯誤訊息完全看不出跟這個設定有關。
+ */
+function isBrave(): boolean {
+  const nav = navigator as Navigator & { brave?: { isBrave?: unknown } };
+  return typeof nav.brave?.isBrave === "function";
+}
+
+/**
  * 把瀏覽器丟出的原始錯誤翻成看得懂的說明。
  * pushManager.subscribe() 失敗時 Chrome 只會給
  * "Registration failed - push service error"，那對使用者毫無幫助。
@@ -22,7 +32,10 @@ function explain(error: unknown): string {
   const message = err?.message ?? String(error);
 
   if (err?.name === "AbortError" || /push service/i.test(message)) {
-    return "瀏覽器連不上推播服務。常見原因：網路或防火牆擋住 Google 的推播服務、瀏覽器停用了推播（Brave、Vivaldi 等預設關閉），或這個瀏覽器設定檔的推播註冊壞掉了。可以試著清除本站資料後重新啟動瀏覽器；手機那台不受影響。";
+    if (isBrave()) {
+      return "Brave 預設關閉了 Google 的推播服務，所以註冊失敗。到 brave://settings/privacy 打開「Use Google services for push messaging」並重新啟動 Brave 即可。（打開等於讓推播經過 Google 的伺服器，那正是 Brave 預設關掉它的原因——不想開的話桌面端就跳過，手機那台不受影響。）";
+    }
+    return "瀏覽器連不上推播服務。常見原因：網路或防火牆擋住 Google 的推播服務、瀏覽器停用了推播，或這個瀏覽器設定檔的推播註冊壞掉了。可以試著清除本站資料後重新啟動瀏覽器；手機那台不受影響。";
   }
   if (err?.name === "NotAllowedError") {
     return "通知權限被拒絕。到瀏覽器的網站設定把「通知」改成允許，再回來開啟。";

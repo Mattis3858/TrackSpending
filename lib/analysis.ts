@@ -25,8 +25,12 @@ export type MonthPace = {
   projectedTotal: Decimal;
   /** 月消費預算，沒設定就是 null */
   budget: Decimal | null;
-  /** 預算剩下多少 */
+  /** 預算剩下多少（還含著尚未支付的固定支出） */
   budgetRemaining: Decimal | null;
+  /** 本月還沒發生、但跑不掉的固定支出（房租、訂閱等） */
+  upcomingFixed: Decimal;
+  /** 真正可以自由花用的餘額 = 預算剩餘 − 尚未支付的固定支出 */
+  spendableRemaining: Decimal | null;
   /** 接下來每天可以花多少（含今天）。沒預算或月份已結束時為 null */
   dailyAllowance: Decimal | null;
   /** 已經超出預算 */
@@ -39,6 +43,14 @@ export function monthPace(input: {
   /** 當月已發生的消費支出（不含儲蓄與投資） */
   consumptionSoFar: MoneyInput;
   budget?: MoneyInput | null;
+  /**
+   * 本月還沒發生、但跑不掉的固定支出。
+   *
+   * 沒有這個，月初會系統性高估：預算裡還含著房租那筆錢，系統卻把它
+   * 算成可以自由花用的。等房租記進去，額度又會突然腰斬——不是處境變了，
+   * 是之前算錯了。
+   */
+  upcomingFixed?: MoneyInput;
 }): MonthPace {
   const totalDays = daysInMonth(input.yearMonth);
   const currentMonth = input.today.slice(0, 7);
@@ -69,9 +81,16 @@ export function monthPace(input: {
       ? null
       : money(input.budget);
   const budgetRemaining = budget ? budget.minus(consumption) : null;
+
+  const upcomingFixed =
+    input.upcomingFixed === undefined ? ZERO : money(input.upcomingFixed);
+  const spendableRemaining = budgetRemaining
+    ? budgetRemaining.minus(upcomingFixed)
+    : null;
+
   const dailyAllowance =
-    budgetRemaining && remainingDays > 0
-      ? budgetRemaining.dividedBy(remainingDays)
+    spendableRemaining && remainingDays > 0
+      ? spendableRemaining.dividedBy(remainingDays)
       : null;
 
   return {
@@ -82,6 +101,8 @@ export function monthPace(input: {
     projectedTotal,
     budget,
     budgetRemaining,
+    upcomingFixed,
+    spendableRemaining,
     dailyAllowance,
     overBudget: budgetRemaining !== null && budgetRemaining.isNegative(),
   };

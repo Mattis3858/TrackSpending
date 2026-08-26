@@ -308,3 +308,45 @@ export async function getHoldings(userId: string): Promise<HoldingDTO[]> {
     cost: toAmountString(r.cost),
   }));
 }
+
+// ───────────────────────────── 固定支出範本
+
+export type RecurringTemplateDTO = {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string | null;
+  amount: string;
+  dayOfMonth: number;
+  note: string | null;
+  active: boolean;
+};
+
+export async function getRecurringTemplates(
+  userId: string,
+): Promise<RecurringTemplateDTO[]> {
+  const rows = await prisma.recurringTemplate.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      categoryId: true,
+      amount: true,
+      dayOfMonth: true,
+      note: true,
+      active: true,
+      category: { select: { name: true, color: true } },
+    },
+    orderBy: [{ dayOfMonth: "asc" }],
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    categoryId: r.categoryId,
+    categoryName: r.category.name,
+    categoryColor: r.category.color,
+    amount: toAmountString(r.amount),
+    dayOfMonth: r.dayOfMonth,
+    note: r.note,
+    active: r.active,
+  }));
+}

@@ -134,3 +134,29 @@ export const holdingInputSchema = z.object({
 });
 
 export type HoldingInputForm = z.infer<typeof holdingInputSchema>;
+
+export const recurringTemplateInputSchema = z.object({
+  categoryId: z.string().min(1, "請選擇分類"),
+  amount: z.string().superRefine((raw, ctx) => {
+    const value = raw.trim();
+    if (!value) {
+      ctx.addIssue({ code: "custom", message: "請輸入金額" });
+      return;
+    }
+    if (!AMOUNT_RE.test(value)) {
+      ctx.addIssue({ code: "custom", message: "金額只能是數字，最多兩位小數" });
+      return;
+    }
+    if (!money(value).greaterThan(0)) {
+      ctx.addIssue({ code: "custom", message: "金額必須大於 0" });
+    }
+  }),
+  dayOfMonth: z
+    .number()
+    .int()
+    .min(1, "日期必須在 1 到 31 之間")
+    .max(31, "日期必須在 1 到 31 之間"),
+  note: z.string().max(100, "備註最多 100 字").optional(),
+});
+
+export type RecurringTemplateInput = z.infer<typeof recurringTemplateInputSchema>;

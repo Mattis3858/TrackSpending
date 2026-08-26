@@ -74,6 +74,18 @@ export default async function SettingsPage() {
               <span className="text-slate-400">›</span>
             </Link>
             <Link
+              href="/settings/recurring"
+              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+            >
+              <span>
+                固定支出
+                <span className="block text-xs text-slate-400">
+                  房租、訂閱等每月跑不掉的支出
+                </span>
+              </span>
+              <span className="text-slate-400">›</span>
+            </Link>
+            <Link
               href="/settings/reconcile"
               className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
             >

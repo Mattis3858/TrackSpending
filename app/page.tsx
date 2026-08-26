@@ -6,6 +6,7 @@ import {
   getLastUsedCategoryId,
   getMonthlyTotals,
   getTransactionsForMonth,
+  getRecurringTemplates,
   getUserSetting,
   sumMonthlyTotals,
 } from "@/lib/queries";
@@ -22,7 +23,7 @@ import {
 } from "@/lib/analysis";
 import { Suspense } from "react";
 import AssetsCard, { AssetsCardSkeleton } from "@/components/assets-card";
-import { ZERO, amountFormatter, formatPercent, money } from "@/lib/money";
+import { ZERO, amountFormatter, formatPercent, money, sum } from "@/lib/money";
 import { getHideAmounts } from "@/lib/preferences";
 import { setHideAmounts } from "./actions/preferences";
 import AmountVisibilityToggle from "@/components/amount-visibility-toggle";
@@ -84,7 +85,15 @@ export default async function HomePage(props: PageProps<"/">) {
   const searchParams = await props.searchParams;
   const ym = readYearMonth(searchParams.m);
 
-  const [txs, initialCategories, frequentIds, lastUsedCategoryId, history, setting] =
+  const [
+    txs,
+    initialCategories,
+    frequentIds,
+    lastUsedCategoryId,
+    history,
+    setting,
+    templates,
+  ] =
     await Promise.all([
       getTransactionsForMonth(userId, ym),
       getCategories(userId),
@@ -92,6 +101,7 @@ export default async function HomePage(props: PageProps<"/">) {
       getLastUsedCategoryId(userId),
       getMonthlyTotals(userId),
       getUserSetting(userId),
+      getRecurringTemplates(userId),
     ]);
 
   // 新註冊的使用者還沒有分類，第一次進來時補上（冪等，已有就什麼都不做）
@@ -117,11 +127,25 @@ export default async function HomePage(props: PageProps<"/">) {
     ? money(setting.monthlyBudget)
     : budgetFromTarget(recentIncome, setting.targetSavingsRate);
 
+  // 每月跑不掉的固定支出。範本是使用者自己填的精確值，歷史平均是
+  // 沒填範本時的後備；取較大者，寧可保守也不要高估可用額度。
+  const templateFixed = sum(
+    templates.filter((t) => t.active).map((t) => t.amount),
+  );
+  const historyFixed = averageMonthlyFixed(history, thisMonth) ?? ZERO;
+  const expectedFixed = templateFixed.greaterThan(historyFixed)
+    ? templateFixed
+    : historyFixed;
+
+  // 本月還沒發生的部分才要先扣；已經記過的不能重複扣
+  const upcomingFixed = expectedFixed.minus(summary.fixedExpense);
+
   const pace = monthPace({
     yearMonth: ym,
     today,
     consumptionSoFar: summary.consumptionExpense,
     budget,
+    upcomingFixed: upcomingFixed.greaterThan(0) ? upcomingFixed : ZERO,
   });
 
   const avgConsumption = averageMonthlyConsumption(history, thisMonth);
@@ -133,7 +157,7 @@ export default async function HomePage(props: PageProps<"/">) {
     variableSoFar: summary.variableExpense,
     elapsedDays: pace.elapsedDays,
     totalDays: pace.totalDays,
-    historicalFixed: averageMonthlyFixed(history, thisMonth),
+    historicalFixed: expectedFixed,
   });
 
   const breakdown = savingsBreakdown({
@@ -196,7 +220,11 @@ export default async function HomePage(props: PageProps<"/">) {
                 <p className="mt-2 text-sm text-slate-300">
                   {pace.overBudget
                     ? `已超出本月預算 ${fmt(pace.budgetRemaining!.abs())}`
-                    : `本月預算 ${fmt(pace.budget!)}，已用 ${fmt(summary.consumptionExpense)}`}
+                    : `本月預算 ${fmt(pace.budget!)}，已用 ${fmt(summary.consumptionExpense)}${
+                        pace.upcomingFixed.greaterThan(0)
+                          ? `，另有固定支出 ${fmt(pace.upcomingFixed)} 尚未支付`
+                          : ""
+                      }`}
                 </p>
               </>
             ) : (

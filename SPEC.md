@@ -606,6 +606,16 @@ CRON_SECRET                    保護排程端點
 
 端點同時接受 `?secret=`，所以若 Vercel 方案不支援排程，任何外部排程服務都能改呼叫 `/api/cron/reminder?secret=...` 達到一樣效果。
 
+### 排程不保證準點
+
+`vercel.json` 設 `"0 14 * * *"`（台北 22:00），但實測會延後——8/25 那次是 22:13 才送出。**介面上要寫「22:00 前後」而不是「22:00」**，否則使用者會在 22:02 檢查然後以為壞掉了。
+
+真的需要準點的話，端點接受 `?secret=`，改用外部排程服務（例如 cron-job.org）呼叫即可。
+
+### 診斷時間欄位的陷阱
+
+`PushSubscription` 的 `lastSentAt` 是 `timestamp without time zone`。用 Prisma 讀寫是一致的，但**用原始 `pg` client 查詢時，node-postgres 會把它當成本地時間解讀**，在 UTC+8 的機器上會顯示成少 8 小時。診斷腳本要用 `to_char()` 取原始值，否則會誤判排程沒跑。
+
 ### 瀏覽器端的兩個已知阻礙
 
 **Brave 預設關閉 Google 推播服務**（去 Google 化的一環）。Web Push 在 Chromium 系底層走的就是 FCM，關掉之後 `subscribe()` 必定以 `AbortError` 失敗，而錯誤訊息（`Registration failed - push service error`）完全看不出跟這個設定有關。解法是到 `brave://settings/privacy` 開啟並重啟瀏覽器。程式會偵測 Brave 並直接給這段說明。

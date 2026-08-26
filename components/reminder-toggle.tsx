@@ -221,7 +221,7 @@ export default function ReminderToggle({
       <div>
         <h2 className="text-sm font-semibold text-slate-900">每日記帳提醒</h2>
         <p className="mt-0.5 text-xs text-slate-400">
-          每晚 22:00 固定提醒你記帳，不管當天記過沒有——晚餐和宵夜常常是漏掉的那幾筆。
+          每晚 22:00 前後固定提醒你記帳，不管當天記過沒有——晚餐和宵夜常常是漏掉的那幾筆。
         </p>
       </div>
 
@@ -234,7 +234,7 @@ export default function ReminderToggle({
       )}
 
       <p className="text-xs text-slate-400">
-        提醒是綁定裝置的，每台想收到的手機或電腦都要各自開啟。
+        提醒是綁定裝置的，每台想收到的手機或電腦都要各自開啟。排程不保證準點，實際大多落在 22:00–23:00 之間。
       </p>
     </section>
   );

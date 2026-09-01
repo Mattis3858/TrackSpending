@@ -3,6 +3,7 @@ import {
   assetSummary,
   averageMonthlyConsumption,
   averageMonthlyFixed,
+  averageMonthlyIncome,
   budgetFromTarget,
   bufferFund,
   categoryDelta,
@@ -11,7 +12,7 @@ import {
   valuePortfolio,
   type MonthlyTotal,
 } from "./analysis";
-import { Decimal } from "./money";
+import { Decimal, money } from "./money";
 import type { CategoryBreakdownItem } from "./reports";
 
 describe("monthPace — 消費速度與每日可用額度", () => {
@@ -785,5 +786,69 @@ describe("monthPace — 尚未支付的固定支出要先扣掉", () => {
       upcomingFixed: "12000",
     });
     expect(p.dailyAllowance?.isNegative()).toBe(true);
+  });
+});
+
+describe("averageMonthlyIncome", () => {
+  const history: MonthlyTotal[] = [
+    { yearMonth: "2026-09", income: new Decimal(20000), consumption: new Decimal(7345), fixed: new Decimal(7000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-08", income: new Decimal(35186), consumption: new Decimal(1004), fixed: new Decimal(0), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-07", income: new Decimal(33000), consumption: new Decimal(28000), fixed: new Decimal(9000), savings: new Decimal(0), investment: new Decimal(0) },
+  ];
+
+  it("排除當月——月初的收入還沒收完，拿來當參考會嚴重低估", () => {
+    // 取 8、7 月 = (35186 + 33000) / 2 = 34,093，不含 9 月那筆 20,000
+    expect(averageMonthlyIncome(history, "2026-09")?.toFixed(0)).toBe("34093");
+  });
+
+  it("只有當月資料時回傳 null（沒有可靠參考就不推估）", () => {
+    expect(averageMonthlyIncome([history[0]], "2026-09")).toBeNull();
+  });
+
+  it("完全沒資料時回傳 null", () => {
+    expect(averageMonthlyIncome([], "2026-09")).toBeNull();
+  });
+});
+
+describe("預算的收入來源 — 9/1 的實際案例", () => {
+  // 真實情境：9/1 只記了爸爸給的 20,000，薪水還沒入帳；8 月收入 35,186
+  const thisMonthIncome = "20000";
+  const historicalIncome = "35186";
+  const targetRate = 35;
+
+  it("直接用當月已記錄的收入，額度會荒謬地小", () => {
+    const budget = budgetFromTarget(thisMonthIncome, targetRate)!;
+    const pace = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-01",
+      consumptionSoFar: "7345", // 房租 7,000 + 午餐 345
+      budget,
+      upcomingFixed: "2857", // 範本 9,857 − 已付房租 7,000
+    });
+
+    expect(budget.toFixed(0)).toBe("13000"); // 20,000 x 65%
+    expect(pace.dailyAllowance?.toFixed(0)).toBe("93"); // 使用者回報的數字
+  });
+
+  it("改用近期收入推估後就合理了", () => {
+    const budget = budgetFromTarget(historicalIncome, targetRate)!;
+    const pace = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-01",
+      consumptionSoFar: "7345",
+      budget,
+      upcomingFixed: "2857",
+    });
+
+    expect(budget.toFixed(0)).toBe("22871"); // 35,186 x 65%
+    expect(pace.dailyAllowance?.toFixed(0)).toBe("422");
+  });
+
+  it("等實際收入超過歷史值，就會改用實際的", () => {
+    // 薪水入帳後當月收入 40,000 > 歷史 35,186
+    const actual = money("40000");
+    const historical = money(historicalIncome);
+    const expected = historical.greaterThan(actual) ? historical : actual;
+    expect(expected.toFixed(0)).toBe("40000");
   });
 });

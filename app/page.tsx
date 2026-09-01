@@ -16,6 +16,7 @@ import { expenseByCategory, summarizeMonth } from "@/lib/reports";
 import {
   averageMonthlyConsumption,
   averageMonthlyFixed,
+  averageMonthlyIncome,
   budgetFromTarget,
   bufferFund,
   monthPace,
@@ -118,14 +119,20 @@ export default async function HomePage(props: PageProps<"/">) {
   const allTime = sumMonthlyTotals(history);
 
   // 預算：手動設定優先；沒設就用「收入 x (1 - 目標儲蓄率)」推算。
-  // 月初薪水還沒入帳時當月收入是 0，改用近期平均收入，否則額度會是 0。
-  const recentIncome = summary.totalIncome.greaterThan(0)
-    ? summary.totalIncome
-    : (history.find((h) => h.income.greaterThan(0))?.income ?? ZERO);
+  //
+  // 收入取「本月已記錄」與「近期月均」的較大者。月初薪水還沒入帳時，
+  // 若直接用當月已記錄的（可能只有一筆小額進帳），預算會被錨定在極低
+  // 的數字上，每日額度就會荒謬地小。等薪水入帳、實際超過歷史值之後，
+  // 就自動改用實際收入。
+  const avgIncome = averageMonthlyIncome(history, thisMonth);
+  const incomeEstimated = Boolean(
+    avgIncome && avgIncome.greaterThan(summary.totalIncome),
+  );
+  const expectedIncome = incomeEstimated ? avgIncome! : summary.totalIncome;
 
   const budget = setting.monthlyBudget
     ? money(setting.monthlyBudget)
-    : budgetFromTarget(recentIncome, setting.targetSavingsRate);
+    : budgetFromTarget(expectedIncome, setting.targetSavingsRate);
 
   // 每月跑不掉的固定支出。範本是使用者自己填的精確值，歷史平均是
   // 沒填範本時的後備；取較大者，寧可保守也不要高估可用額度。
@@ -152,7 +159,7 @@ export default async function HomePage(props: PageProps<"/">) {
 
   // 緩衝資金：扣掉「跑不掉的」與「照目前速度會花掉的」之後還剩多少
   const buffer = bufferFund({
-    income: summary.totalIncome,
+    income: expectedIncome,
     fixedSoFar: summary.fixedExpense,
     variableSoFar: summary.variableExpense,
     elapsedDays: pace.elapsedDays,
@@ -220,7 +227,9 @@ export default async function HomePage(props: PageProps<"/">) {
                 <p className="mt-2 text-sm text-slate-300">
                   {pace.overBudget
                     ? `已超出本月預算 ${fmt(pace.budgetRemaining!.abs())}`
-                    : `本月預算 ${fmt(pace.budget!)}，已用 ${fmt(summary.consumptionExpense)}${
+                    : `本月預算 ${fmt(pace.budget!)}${
+                        incomeEstimated ? "（依近期收入推估）" : ""
+                      }，已用 ${fmt(summary.consumptionExpense)}${
                         pace.upcomingFixed.greaterThan(0)
                           ? `，另有固定支出 ${fmt(pace.upcomingFixed)} 尚未支付`
                           : ""

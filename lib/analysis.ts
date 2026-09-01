@@ -285,6 +285,31 @@ export function averageMonthlyConsumption(
 }
 
 /**
+ * 近期月份的平均收入，給月初「薪水還沒入帳」時推估用。
+ *
+ * 為什麼需要：預算是 `收入 × (1 − 目標儲蓄率)`。月初只記了一筆小額
+ * 收入（例如家人給的），若直接拿它當全月收入，預算會被錨定在極低的
+ * 數字上——**部分收入比完全沒有收入更糟**，因為後者還會觸發後備機制。
+ *
+ * 跟固定支出一樣排除當月（當月的收入還沒收完）。
+ */
+export function averageMonthlyIncome(
+  history: MonthlyTotal[],
+  currentYearMonth: YearMonth,
+  months = 3,
+): Decimal | null {
+  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
+  if (complete.length === 0) return null;
+
+  const recent = [...complete]
+    .sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1))
+    .slice(0, months);
+
+  const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.income), ZERO);
+  return total.dividedBy(recent.length);
+}
+
+/**
  * 近期月份的固定支出參考值，給緩衝資金在「本月房租還沒記」時推估用。
  * 跟月均消費一樣排除當月——當月固定支出還沒發生完，拿來當參考會低估。
  */

@@ -43,7 +43,17 @@ export type MonthPace = {
   dailyAllowance: Decimal | null;
   /** 已經超出預算 */
   overBudget: boolean;
+  /**
+   * 月底預測是否可信。
+   *
+   * 已過天數太少時，任何一筆消費都會被乘以整月天數——9/1 那天花 810 元
+   * 就會外推成 24,300。那是噪音不是資訊，UI 應該顯示「—」。
+   */
+  projectionReliable: boolean;
 };
+
+/** 少於這個天數就不做外推 */
+export const MIN_DAYS_FOR_PROJECTION = 3;
 
 export function monthPace(input: {
   yearMonth: YearMonth;
@@ -128,6 +138,7 @@ export function monthPace(input: {
     spendableRemaining,
     dailyAllowance,
     overBudget: budgetRemaining !== null && budgetRemaining.isNegative(),
+    projectionReliable: elapsedDays >= MIN_DAYS_FOR_PROJECTION,
   };
 }
 
@@ -278,15 +289,33 @@ export type MonthlyTotal = {
   investment: Decimal;
 };
 
-/** 取最近 N 個完整月份；沒有完整月份時才退而用當月 */
-function recentMonths(
+/**
+ * 取得可以拿來當「月平均」基準的月份。
+ *
+ * 排除兩種月份：
+ * 1. **當月**——還沒過完，拿來平均會低估。
+ * 2. **最早有資料的那個月**——開始記帳的第一個月幾乎必然不完整。
+ *    實際案例：使用者 8/25 才開始記，8 月只有 7 天的資料共 5,857 元，
+ *    當成「月消費」會讓緊急預備金顯示 25.6 個月，實際上只有約 6 個月。
+ *    **高估安全感是最危險的方向。**
+ *
+ * 沒有任何可用月份時回傳空陣列，呼叫端應該顯示「—」而不是猜一個數字。
+ */
+function usableMonths(
   history: MonthlyTotal[],
   currentYearMonth: YearMonth,
   months: number,
 ): MonthlyTotal[] {
-  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
-  const pool = complete.length > 0 ? complete : history;
-  return [...pool]
+  const past = history.filter((h) => h.yearMonth < currentYearMonth);
+  if (past.length === 0) return [];
+
+  const earliest = past.reduce(
+    (min, h) => (h.yearMonth < min ? h.yearMonth : min),
+    past[0].yearMonth,
+  );
+
+  return past
+    .filter((h) => h.yearMonth !== earliest)
     .sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1))
     .slice(0, months);
 }
@@ -300,7 +329,7 @@ export function averageMonthlyConsumption(
   currentYearMonth: YearMonth,
   months = 3,
 ): Decimal | null {
-  const recent = recentMonths(history, currentYearMonth, months);
+  const recent = usableMonths(history, currentYearMonth, months);
   if (recent.length === 0) return null;
 
   const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.consumption), ZERO);
@@ -314,7 +343,9 @@ export function averageMonthlyConsumption(
  * 收入（例如家人給的），若直接拿它當全月收入，預算會被錨定在極低的
  * 數字上——**部分收入比完全沒有收入更糟**，因為後者還會觸發後備機制。
  *
- * 跟固定支出一樣排除當月（當月的收入還沒收完）。
+ * 只排除當月（收入還沒收完），**不排除第一個記帳月份**——那條規則是給
+ * 支出用的。低估支出會高估安全感（危險），低估收入只會讓額度變小（安全）。
+ * 而且收入通常是幾筆大額進帳，就算月份不完整也可能已經收完整。
  */
 export function averageMonthlyIncome(
   history: MonthlyTotal[],
@@ -341,12 +372,8 @@ export function averageMonthlyFixed(
   currentYearMonth: YearMonth,
   months = 3,
 ): Decimal | null {
-  const complete = history.filter((h) => h.yearMonth < currentYearMonth);
-  if (complete.length === 0) return null;
-
-  const recent = [...complete]
-    .sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1))
-    .slice(0, months);
+  const recent = usableMonths(history, currentYearMonth, months);
+  if (recent.length === 0) return null;
 
   const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.fixed), ZERO);
   return total.dividedBy(recent.length);
@@ -600,6 +627,8 @@ export type BufferFund = {
   buffer: Decimal;
   /** 佔收入比例；沒有收入時為 null */
   bufferRatio: number | null;
+  /** 預估變動消費是否可信（已過天數夠不夠） */
+  projectionReliable: boolean;
 };
 
 /**
@@ -652,5 +681,6 @@ export function bufferFund(input: {
     bufferRatio: income.greaterThan(0)
       ? buffer.dividedBy(income).toNumber()
       : null,
+    projectionReliable: input.elapsedDays >= MIN_DAYS_FOR_PROJECTION,
   };
 }

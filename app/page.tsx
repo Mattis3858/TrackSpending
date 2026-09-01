@@ -158,8 +158,12 @@ export default async function HomePage(props: PageProps<"/">) {
   const avgConsumption = averageMonthlyConsumption(history, thisMonth);
 
   // 緩衝資金：扣掉「跑不掉的」與「照目前速度會花掉的」之後還剩多少
+  // 有手動設定月預算時以它為基準：使用者已經明確表達「這個月我打算花多少」，
+  // 那比系統用歷史推估的收入更能代表意圖。
+  const bufferBasis = budget ?? expectedIncome;
+
   const buffer = bufferFund({
-    income: expectedIncome,
+    income: bufferBasis,
     fixedSoFar: summary.fixedExpense,
     variableSoFar: summary.variableExpense,
     elapsedDays: pace.elapsedDays,
@@ -306,7 +310,11 @@ export default async function HomePage(props: PageProps<"/">) {
           {/* 消費速度 */}
           <Card
             title="消費速度"
-            note={`日均只算變動消費（餐食、飲料、交通這類日常）。房租、訂閱是整月一次的大筆支出，混進日均再乘天數會嚴重高估，所以月底預測是「變動日均 × 天數 + 整月固定支出 ${fmt(expectedFixed)}」。`}
+            note={
+              pace.projectionReliable
+                ? `日均只算變動消費（餐食、飲料、交通這類日常）。房租、訂閱是整月一次的大筆支出，混進日均再乘天數會嚴重高估，所以月底預測是「變動日均 × 天數 + 整月固定支出 ${fmt(expectedFixed)}」。`
+                : `月初資料還太少，任何一筆消費乘上整月天數都會失真，所以先不顯示預測。過幾天就會出現。`
+            }
           >
             <div className="grid grid-cols-2 gap-4">
               <Stat
@@ -315,9 +323,15 @@ export default async function HomePage(props: PageProps<"/">) {
               />
               <Stat
                 label={isCurrentMonth ? "照這速度月底約" : "當月總消費"}
-                value={fmt(pace.projectedTotal.toFixed(0))}
+                value={
+                  pace.projectionReliable
+                    ? fmt(pace.projectedTotal.toFixed(0))
+                    : "—"
+                }
                 tone={
-                  pace.budget && pace.projectedTotal.greaterThan(pace.budget)
+                  pace.projectionReliable &&
+                  pace.budget &&
+                  pace.projectedTotal.greaterThan(pace.budget)
                     ? "text-red-600"
                     : "text-slate-900"
                 }
@@ -330,25 +344,32 @@ export default async function HomePage(props: PageProps<"/">) {
             <Card
               title="緩衝／娛樂資金"
               note={
-                buffer.fixedEstimated
-                  ? "固定支出用近三個月推估（本月的房租等還沒記錄）。低估支出會高估緩衝，寧可保守。"
-                  : "扣掉每月跑不掉的固定支出，再扣掉照目前速度會花掉的變動消費之後，剩下可以自由運用的錢。"
+                !buffer.projectionReliable
+                  ? "月初的變動消費資料還太少，外推出來的數字沒有意義，過幾天再看。"
+                  : buffer.fixedEstimated
+                    ? "固定支出用近三個月推估（本月的房租等還沒記錄）。低估支出會高估緩衝，寧可保守。"
+                    : `扣掉每月跑不掉的固定支出，再扣掉照目前速度會花掉的變動消費之後，剩下可以自由運用的錢。基準是${
+                        setting.monthlyBudget ? "你設定的月預算" : "推估的月收入"
+                      }。`
               }
             >
               <p
                 className={
-                  buffer.buffer.isNegative()
+                  buffer.projectionReliable && buffer.buffer.isNegative()
                     ? "tabular text-3xl font-semibold text-red-600"
                     : "tabular text-3xl font-semibold"
                 }
               >
-                {fmt(buffer.buffer.toFixed(0))}
+                {buffer.projectionReliable ? fmt(buffer.buffer.toFixed(0)) : "—"}
               </p>
 
               <div className="mt-3 space-y-1 text-xs text-slate-500">
                 <p className="tabular">
-                  收入 {fmt(buffer.income)} − 固定支出 {fmt(buffer.fixed)} − 預估變動消費{" "}
-                  {fmt(buffer.variableProjected.toFixed(0))}
+                  {setting.monthlyBudget ? "月預算" : "收入"} {fmt(buffer.income)} − 固定支出{" "}
+                  {fmt(buffer.fixed)} − 預估變動消費{" "}
+                  {buffer.projectionReliable
+                    ? fmt(buffer.variableProjected.toFixed(0))
+                    : "—"}
                 </p>
                 <p className="tabular">
                   變動消費目前已花 {fmt(buffer.variableSoFar)}

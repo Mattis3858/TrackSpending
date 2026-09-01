@@ -325,9 +325,9 @@ describe("averageMonthlyConsumption", () => {
     expect(averageMonthlyConsumption(history, "2026-08", 3)?.toFixed(0)).toBe("28000");
   });
 
-  it("只有當月資料時退而用當月，不回傳 null", () => {
+  it("只有當月資料時回傳 null——當月還沒過完，拿來當月平均會低估", () => {
     const onlyCurrent = [history[0]];
-    expect(averageMonthlyConsumption(onlyCurrent, "2026-08")?.toFixed(0)).toBe("5000");
+    expect(averageMonthlyConsumption(onlyCurrent, "2026-08")).toBeNull();
   });
 
   it("完全沒資料時回傳 null", () => {
@@ -679,13 +679,14 @@ describe("averageMonthlyFixed", () => {
     { yearMonth: "2026-05", income: new Decimal(0), consumption: new Decimal(26000), fixed: new Decimal(17000), savings: new Decimal(0), investment: new Decimal(0) },
   ];
 
-  it("排除當月——當月的固定支出還沒發生完，拿來當參考會低估", () => {
-    // 取 7、6、5 月 = (18000+18000+17000)/3 = 17,666.67，不含 8 月的 3,000
-    expect(averageMonthlyFixed(history, "2026-08")?.toFixed(0)).toBe("17667");
+  it("排除當月與最早的記帳月份", () => {
+    // 當月 8 月排除（還沒過完）；最早的 5 月排除（開始記帳的第一個月幾乎不完整）
+    // 剩下 7、6 月 = (18000 + 18000) / 2 = 18,000
+    expect(averageMonthlyFixed(history, "2026-08")?.toFixed(0)).toBe("18000");
   });
 
-  it("只有當月資料時回傳 null（沒有可靠的參考值就不要推估）", () => {
-    expect(averageMonthlyFixed([history[0]], "2026-08")).toBeNull();
+  it("只有一個歷史月份時回傳 null——那個月就是最早的記帳月，不完整", () => {
+    expect(averageMonthlyFixed([history[0], history[1]], "2026-08")).toBeNull();
   });
 
   it("完全沒資料時回傳 null", () => {
@@ -886,5 +887,104 @@ describe("預算的收入來源 — 9/1 的實際案例", () => {
     const historical = money("35186");
     const expected = historical.greaterThan(actual) ? historical : actual;
     expect(expected.toFixed(0)).toBe("40000");
+  });
+});
+
+describe("月平均要排除「開始記帳的第一個月」", () => {
+  // 真實案例：8/25 才開始記帳，8 月只有 7 天的資料
+  const history: MonthlyTotal[] = [
+    { yearMonth: "2026-09", income: new Decimal(20000), consumption: new Decimal(7810), fixed: new Decimal(7000), savings: new Decimal(0), investment: new Decimal(0) },
+    { yearMonth: "2026-08", income: new Decimal(35186), consumption: new Decimal(5857), fixed: new Decimal(0), savings: new Decimal(0), investment: new Decimal(0) },
+  ];
+
+  it("只有一個不完整的歷史月份時回傳 null，不要拿 7 天的資料當月平均", () => {
+    // 5,857 是 8/25–8/31 共七天的花費，當成「月消費」會讓緊急預備金虛胖四倍
+    expect(averageMonthlyConsumption(history, "2026-09")).toBeNull();
+    expect(averageMonthlyFixed(history, "2026-09")).toBeNull();
+  });
+
+  it("緊急預備金因此顯示不出來，而不是顯示一個錯的 25.6 個月", () => {
+    const a = assetSummary({
+      startingCash: "149654",
+      allTimeIncome: "0",
+      allTimeConsumption: "0",
+      allTimeInvestment: "0",
+      avgMonthlyConsumption: averageMonthlyConsumption(history, "2026-09"),
+    });
+    expect(a.emergencyMonths).toBeNull();
+
+    // 對照：若誤用那 5,857，會顯示 25.5 個月——實際大約只有 6 個月
+    const wrong = assetSummary({
+      startingCash: "149654",
+      allTimeIncome: "0",
+      allTimeConsumption: "0",
+      allTimeInvestment: "0",
+      avgMonthlyConsumption: "5857",
+    });
+    expect(wrong.emergencyMonths).toBeGreaterThan(25);
+  });
+
+  it("有兩個以上完整月份時就正常計算", () => {
+    const longer: MonthlyTotal[] = [
+      ...history,
+      { yearMonth: "2026-10", income: new Decimal(40000), consumption: new Decimal(24000), fixed: new Decimal(9857), savings: new Decimal(0), investment: new Decimal(0) },
+    ];
+    // 當月 11 月：排除最早的 8 月，用 9、10 月 = (7810 + 24000) / 2
+    expect(averageMonthlyConsumption(longer, "2026-11")?.toFixed(0)).toBe("15905");
+  });
+
+  it("收入不套用這條規則——低估收入只會讓額度變小，是安全的方向", () => {
+    expect(averageMonthlyIncome(history, "2026-09")?.toFixed(0)).toBe("35186");
+  });
+});
+
+describe("資料太少時不做外推", () => {
+  it("9/1 只有一天資料，月底預測標記為不可信", () => {
+    const p = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-01",
+      variableSoFar: "810",
+      fixedSoFar: "7000",
+      expectedFixed: "9857",
+      budget: "25000",
+    });
+
+    expect(p.elapsedDays).toBe(1);
+    expect(p.projectionReliable).toBe(false);
+    // 數字本身仍算得出來（810 × 30 + 9,857），但 UI 不該顯示它
+    expect(p.projectedTotal.toFixed(0)).toBe("34157");
+  });
+
+  it("過了三天就可信了", () => {
+    const p = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-03",
+      variableSoFar: "2400",
+      fixedSoFar: "7000",
+      expectedFixed: "9857",
+    });
+    expect(p.projectionReliable).toBe(true);
+  });
+
+  it("緩衝資金也有同樣的旗標", () => {
+    const b = bufferFund({
+      income: "25000",
+      fixedSoFar: "7000",
+      variableSoFar: "810",
+      elapsedDays: 1,
+      totalDays: 30,
+      historicalFixed: "9857",
+    });
+    expect(b.projectionReliable).toBe(false);
+  });
+
+  it("看過去的月份時一定可信（整月都過完了）", () => {
+    const p = monthPace({
+      yearMonth: "2026-08",
+      today: "2026-09-15",
+      variableSoFar: "5857",
+      fixedSoFar: "0",
+    });
+    expect(p.projectionReliable).toBe(true);
   });
 });

@@ -21,7 +21,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "18600",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
     });
 
     expect(p.elapsedDays).toBe(18);
@@ -33,7 +34,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "18600",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
     });
     expect(p.projectedTotal.toFixed(0)).toBe("32033");
   });
@@ -42,7 +44,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "0",
+      variableSoFar: "0",
+      fixedSoFar: "0",
     });
     expect(p.remainingDays).toBe(14); // 18~31 共 14 天
   });
@@ -51,7 +54,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "18600",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
       budget: "31000",
     });
 
@@ -64,7 +68,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "35000",
+      variableSoFar: "35000",
+      fixedSoFar: "0",
       budget: "31000",
     });
     expect(p.overBudget).toBe(true);
@@ -75,7 +80,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-01",
-      consumptionSoFar: "500",
+      variableSoFar: "500",
+      fixedSoFar: "0",
       budget: "31000",
     });
     expect(p.elapsedDays).toBe(1);
@@ -87,7 +93,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-31",
-      consumptionSoFar: "30000",
+      variableSoFar: "30000",
+      fixedSoFar: "0",
       budget: "31000",
     });
     expect(p.remainingDays).toBe(1);
@@ -98,7 +105,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-07",
       today: "2026-08-18",
-      consumptionSoFar: "28000",
+      variableSoFar: "28000",
+      fixedSoFar: "0",
       budget: "31000",
     });
     expect(p.elapsedDays).toBe(31);
@@ -112,7 +120,8 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     const p = monthPace({
       yearMonth: "2026-08",
       today: "2026-08-18",
-      consumptionSoFar: "18600",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
     });
     expect(p.budget).toBeNull();
     expect(p.dailyAllowance).toBeNull();
@@ -685,26 +694,23 @@ describe("averageMonthlyFixed", () => {
 });
 
 describe("monthPace — 尚未支付的固定支出要先扣掉", () => {
-  // 預算 24,630、房租 12,000 在 5 號扣、當月 30 天
-  const base = {
-    yearMonth: "2026-09" as const,
-    totalDays: 30,
-    budget: "24630",
-  };
+  // 預算 24,630、房租 12,000 在 5 號扣、當月 30 天、日常已花 900
+  const base = { yearMonth: "2026-09" as const, budget: "24630" };
 
   it("房租還沒扣時，不先扣掉會高估一倍", () => {
     const naive = monthPace({
-      yearMonth: base.yearMonth,
+      ...base,
       today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
+      variableSoFar: "900",
+      fixedSoFar: "0",
+      // 沒有 expectedFixed：系統不知道房租快來了
     });
     const correct = monthPace({
-      yearMonth: base.yearMonth,
+      ...base,
       today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
-      upcomingFixed: "12000",
+      variableSoFar: "900",
+      fixedSoFar: "0",
+      expectedFixed: "12000",
     });
 
     // (24630 − 900) / 28 = 847.5 → 848
@@ -714,24 +720,21 @@ describe("monthPace — 尚未支付的固定支出要先扣掉", () => {
   });
 
   it("房租記進去之後，額度不會突然腰斬", () => {
-    // 3 號：房租未付，先扣預估
     const before = monthPace({
-      yearMonth: base.yearMonth,
+      ...base,
       today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
-      upcomingFixed: "12000",
+      variableSoFar: "900",
+      fixedSoFar: "0",
+      expectedFixed: "12000",
     });
-    // 6 號：房租已付並記錄，所以 upcomingFixed 歸零
     const after = monthPace({
-      yearMonth: base.yearMonth,
+      ...base,
       today: "2026-09-06",
-      consumptionSoFar: "12900",
-      budget: base.budget,
-      upcomingFixed: "0",
+      variableSoFar: "900",
+      fixedSoFar: "12000", // 房租已付並記錄
+      expectedFixed: "12000",
     });
 
-    // 兩者應該接近（差別只來自這三天實際多花的錢與天數變化）
     expect(before.dailyAllowance?.toFixed(0)).toBe("419");
     expect(after.dailyAllowance?.toFixed(0)).toBe("469");
     // 修正前的落差是 848 → 469（腰斬），現在只有 419 → 469
@@ -743,49 +746,84 @@ describe("monthPace — 尚未支付的固定支出要先扣掉", () => {
     ).toBeLessThan(100);
   });
 
-  it("budgetRemaining 仍是「預算還剩多少」，不含這個扣除", () => {
+  it("已記錄的固定支出不會被重複扣", () => {
     const p = monthPace({
-      yearMonth: base.yearMonth,
-      today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
-      upcomingFixed: "12000",
+      ...base,
+      today: "2026-09-06",
+      variableSoFar: "900",
+      fixedSoFar: "12000",
+      expectedFixed: "12000",
     });
-
-    expect(p.budgetRemaining?.toFixed(0)).toBe("23730"); // 24,630 − 900
-    expect(p.spendableRemaining?.toFixed(0)).toBe("11730"); // 再扣 12,000
-    expect(p.upcomingFixed.toFixed(0)).toBe("12000");
+    expect(p.upcomingFixed.toFixed(0)).toBe("0");
   });
 
-  it("沒有固定支出範本時，行為跟以前完全一樣", () => {
-    const withZero = monthPace({
-      yearMonth: base.yearMonth,
+  it("budgetRemaining 仍是「預算還剩多少」，不含這個扣除", () => {
+    const p = monthPace({
+      ...base,
       today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
-      upcomingFixed: "0",
-    });
-    const without = monthPace({
-      yearMonth: base.yearMonth,
-      today: "2026-09-03",
-      consumptionSoFar: "900",
-      budget: base.budget,
+      variableSoFar: "900",
+      fixedSoFar: "0",
+      expectedFixed: "12000",
     });
 
-    expect(withZero.dailyAllowance?.toFixed(2)).toBe(
-      without.dailyAllowance?.toFixed(2),
-    );
+    expect(p.consumedSoFar.toFixed(0)).toBe("900");
+    expect(p.budgetRemaining?.toFixed(0)).toBe("23730");
+    expect(p.spendableRemaining?.toFixed(0)).toBe("11730");
+    expect(p.upcomingFixed.toFixed(0)).toBe("12000");
   });
 
   it("固定支出超過預算剩餘時，可用額度為負（誠實呈現）", () => {
     const p = monthPace({
-      yearMonth: base.yearMonth,
+      ...base,
       today: "2026-09-03",
-      consumptionSoFar: "20000",
-      budget: base.budget,
-      upcomingFixed: "12000",
+      variableSoFar: "20000",
+      fixedSoFar: "0",
+      expectedFixed: "12000",
     });
     expect(p.dailyAllowance?.isNegative()).toBe(true);
+  });
+});
+
+describe("monthPace — 日均只算變動消費", () => {
+  it("房租不進日均，否則月初會荒謬地高", () => {
+    // 9/2，房租 7,000 已付、日常只花了 345
+    const p = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-02",
+      variableSoFar: "345",
+      fixedSoFar: "7000",
+      expectedFixed: "9857",
+    });
+
+    // 日均只看 345 / 2 天
+    expect(p.dailyAverage.toFixed(0)).toBe("173");
+    // 若把房租混進去：(7000+345)/2 = 3,673，乘 30 天就是 11 萬
+    expect(p.dailyAverage.toFixed(0)).not.toBe("3673");
+  });
+
+  it("月底預測 = 變動日均 × 天數 + 整月固定支出", () => {
+    const p = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-02",
+      variableSoFar: "345",
+      fixedSoFar: "7000",
+      expectedFixed: "9857",
+    });
+
+    // 172.5 × 30 = 5,175，加上整月固定 9,857
+    expect(p.projectedTotal.toFixed(0)).toBe("15032");
+    // 舊算法會得到 (7345/2) × 30 = 110,175
+    expect(Number(p.projectedTotal.toFixed(0))).toBeLessThan(20000);
+  });
+
+  it("consumedSoFar 仍是變動 + 固定的總額", () => {
+    const p = monthPace({
+      yearMonth: "2026-09",
+      today: "2026-09-02",
+      variableSoFar: "345",
+      fixedSoFar: "7000",
+    });
+    expect(p.consumedSoFar.toFixed(0)).toBe("7345");
   });
 });
 
@@ -811,43 +849,41 @@ describe("averageMonthlyIncome", () => {
 });
 
 describe("預算的收入來源 — 9/1 的實際案例", () => {
-  // 真實情境：9/1 只記了爸爸給的 20,000，薪水還沒入帳；8 月收入 35,186
-  const thisMonthIncome = "20000";
-  const historicalIncome = "35186";
-  const targetRate = 35;
+  // 真實情境：9/1 記了爸爸給的 20,000、房租 7,000、午餐 345；
+  // 固定支出範本合計 9,857；8 月收入 35,186；目標儲蓄率 35%
+  const day1 = {
+    yearMonth: "2026-09" as const,
+    today: "2026-09-01" as const,
+    variableSoFar: "345",
+    fixedSoFar: "7000",
+    expectedFixed: "9857",
+  };
 
   it("直接用當月已記錄的收入，額度會荒謬地小", () => {
-    const budget = budgetFromTarget(thisMonthIncome, targetRate)!;
-    const pace = monthPace({
-      yearMonth: "2026-09",
-      today: "2026-09-01",
-      consumptionSoFar: "7345", // 房租 7,000 + 午餐 345
-      budget,
-      upcomingFixed: "2857", // 範本 9,857 − 已付房租 7,000
-    });
+    const budget = budgetFromTarget("20000", 35)!;
+    const pace = monthPace({ ...day1, budget });
 
     expect(budget.toFixed(0)).toBe("13000"); // 20,000 x 65%
     expect(pace.dailyAllowance?.toFixed(0)).toBe("93"); // 使用者回報的數字
   });
 
   it("改用近期收入推估後就合理了", () => {
-    const budget = budgetFromTarget(historicalIncome, targetRate)!;
-    const pace = monthPace({
-      yearMonth: "2026-09",
-      today: "2026-09-01",
-      consumptionSoFar: "7345",
-      budget,
-      upcomingFixed: "2857",
-    });
+    const budget = budgetFromTarget("35186", 35)!;
+    const pace = monthPace({ ...day1, budget });
 
     expect(budget.toFixed(0)).toBe("22871"); // 35,186 x 65%
     expect(pace.dailyAllowance?.toFixed(0)).toBe("422");
   });
 
+  it("手動設定月預算時直接用它，不再推估", () => {
+    const pace = monthPace({ ...day1, budget: "30000" });
+    // (30,000 − 7,345 − 2,857) / 30 = 660
+    expect(pace.dailyAllowance?.toFixed(0)).toBe("660");
+  });
+
   it("等實際收入超過歷史值，就會改用實際的", () => {
-    // 薪水入帳後當月收入 40,000 > 歷史 35,186
     const actual = money("40000");
-    const historical = money(historicalIncome);
+    const historical = money("35186");
     const expected = historical.greaterThan(actual) ? historical : actual;
     expect(expected.toFixed(0)).toBe("40000");
   });

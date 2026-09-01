@@ -144,15 +144,15 @@ export default async function HomePage(props: PageProps<"/">) {
     ? templateFixed
     : historyFixed;
 
-  // 本月還沒發生的部分才要先扣；已經記過的不能重複扣
-  const upcomingFixed = expectedFixed.minus(summary.fixedExpense);
-
   const pace = monthPace({
     yearMonth: ym,
     today,
-    consumptionSoFar: summary.consumptionExpense,
+    // 變動與固定分開傳：日均只能算變動消費，房租那種一次性的大筆
+    // 混進日均再乘天數會嚴重高估
+    variableSoFar: summary.variableExpense,
+    fixedSoFar: summary.fixedExpense,
+    expectedFixed,
     budget,
-    upcomingFixed: upcomingFixed.greaterThan(0) ? upcomingFixed : ZERO,
   });
 
   const avgConsumption = averageMonthlyConsumption(history, thisMonth);
@@ -306,15 +306,11 @@ export default async function HomePage(props: PageProps<"/">) {
           {/* 消費速度 */}
           <Card
             title="消費速度"
-            note={
-              summary.fixedExpense.greaterThan(0)
-                ? `其中固定支出 ${fmt(summary.fixedExpense)}、變動 ${fmt(summary.variableExpense)}。固定支出是每月都跑不掉的部分`
-                : undefined
-            }
+            note={`日均只算變動消費（餐食、飲料、交通這類日常）。房租、訂閱是整月一次的大筆支出，混進日均再乘天數會嚴重高估，所以月底預測是「變動日均 × 天數 + 整月固定支出 ${fmt(expectedFixed)}」。`}
           >
             <div className="grid grid-cols-2 gap-4">
               <Stat
-                label={`日均消費（已過 ${pace.elapsedDays} 天）`}
+                label={`日均變動消費（已過 ${pace.elapsedDays} 天）`}
                 value={fmt(pace.dailyAverage.toFixed(0))}
               />
               <Stat

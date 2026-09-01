@@ -19,9 +19,17 @@ export type MonthPace = {
   elapsedDays: number;
   /** 還剩幾天可以花，包含今天 */
   remainingDays: number;
-  /** 日均消費 = 已花的消費 ÷ 已過天數。分母用已過天數而不是總天數，否則月中會嚴重低估 */
+  /**
+   * 日均**變動**消費 = 已花的變動消費 ÷ 已過天數。
+   *
+   * 刻意不含固定支出：房租是某一天的一大筆，混進日均再乘上天數會嚴重
+   * 高估——7,000 的房租在第 2 天會讓日均變成 3,672，乘 30 天就是 11 萬。
+   * 分母用已過天數而不是總天數，否則月中會嚴重低估。
+   */
   dailyAverage: Decimal;
-  /** 照這個速度，月底預計會花多少 */
+  /** 本月已花的消費總額（變動 + 固定） */
+  consumedSoFar: Decimal;
+  /** 照這個速度，月底預計會花多少 = 變動日均 × 天數 + 預估整月固定支出 */
   projectedTotal: Decimal;
   /** 月消費預算，沒設定就是 null */
   budget: Decimal | null;
@@ -40,21 +48,31 @@ export type MonthPace = {
 export function monthPace(input: {
   yearMonth: YearMonth;
   today: Ymd;
-  /** 當月已發生的消費支出（不含儲蓄與投資） */
-  consumptionSoFar: MoneyInput;
-  budget?: MoneyInput | null;
+  /** 本月已花的變動消費（餐食、飲料、交通等日常） */
+  variableSoFar: MoneyInput;
+  /** 本月已記錄的固定支出（房租、水電、訂閱等） */
+  fixedSoFar: MoneyInput;
   /**
-   * 本月還沒發生、但跑不掉的固定支出。
+   * 預估的整月固定支出（範本合計，或近期歷史平均）。
+   *
+   * 用途有二：算出「本月還沒發生但跑不掉」的部分先從可用額度扣掉，
+   * 以及讓月底預測把固定支出整筆加回去，而不是從日均外推。
    *
    * 沒有這個，月初會系統性高估：預算裡還含著房租那筆錢，系統卻把它
-   * 算成可以自由花用的。等房租記進去，額度又會突然腰斬——不是處境變了，
-   * 是之前算錯了。
+   * 算成可以自由花用的。等房租記進去，額度又會突然腰斬。
    */
-  upcomingFixed?: MoneyInput;
+  expectedFixed?: MoneyInput;
+  budget?: MoneyInput | null;
 }): MonthPace {
   const totalDays = daysInMonth(input.yearMonth);
   const currentMonth = input.today.slice(0, 7);
-  const consumption = money(input.consumptionSoFar);
+
+  const variableSoFar = money(input.variableSoFar);
+  const fixedSoFar = money(input.fixedSoFar);
+  const consumption = variableSoFar.plus(fixedSoFar);
+
+  const expectedFixed =
+    input.expectedFixed === undefined ? fixedSoFar : money(input.expectedFixed);
 
   let elapsedDays: number;
   let remainingDays: number;
@@ -71,10 +89,13 @@ export function monthPace(input: {
     remainingDays = totalDays - elapsedDays + 1;
   }
 
+  // 只用變動消費算日均；固定支出是整月一次，另外加回去
   const dailyAverage =
-    elapsedDays > 0 ? consumption.dividedBy(elapsedDays) : ZERO;
+    elapsedDays > 0 ? variableSoFar.dividedBy(elapsedDays) : ZERO;
   const projectedTotal =
-    elapsedDays > 0 ? dailyAverage.times(totalDays) : ZERO;
+    elapsedDays > 0
+      ? dailyAverage.times(totalDays).plus(expectedFixed)
+      : expectedFixed;
 
   const budget =
     input.budget === null || input.budget === undefined
@@ -82,8 +103,9 @@ export function monthPace(input: {
       : money(input.budget);
   const budgetRemaining = budget ? budget.minus(consumption) : null;
 
-  const upcomingFixed =
-    input.upcomingFixed === undefined ? ZERO : money(input.upcomingFixed);
+  // 已經記過的固定支出不能重複扣
+  const remainingFixed = expectedFixed.minus(fixedSoFar);
+  const upcomingFixed = remainingFixed.greaterThan(0) ? remainingFixed : ZERO;
   const spendableRemaining = budgetRemaining
     ? budgetRemaining.minus(upcomingFixed)
     : null;
@@ -98,6 +120,7 @@ export function monthPace(input: {
     elapsedDays,
     remainingDays,
     dailyAverage,
+    consumedSoFar: consumption,
     projectedTotal,
     budget,
     budgetRemaining,

@@ -8,7 +8,7 @@ export default function SignupPage() {
     <main className="flex-1 flex items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">建立帳號</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           每個帳號有各自獨立的帳本，資料不會互通
         </p>
 

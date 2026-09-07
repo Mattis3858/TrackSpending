@@ -13,7 +13,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 border-t border-slate-200 bg-white/95 backdrop-blur">
+    <nav className="sticky bottom-0 border-t border-slate-200 dark:border-slate-800 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-lg">
         {ITEMS.map((item) => {
           const active =
@@ -25,7 +25,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={`flex-1 py-3 text-center text-sm ${
-                active ? "font-semibold text-slate-900" : "text-slate-400"
+                active ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-400 dark:text-slate-500"
               }`}
             >
               {item.label}

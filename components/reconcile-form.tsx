@@ -58,17 +58,17 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <section className="rounded-2xl bg-slate-900 px-5 py-5 text-white">
-        <p className="text-sm text-slate-400">系統算出來的現金</p>
+      <section className="rounded-2xl bg-slate-900 dark:bg-slate-800 px-5 py-5 text-white dark:text-slate-100">
+        <p className="text-sm text-slate-400 dark:text-slate-500">系統算出來的現金</p>
         <p className="tabular mt-1 text-3xl font-semibold tracking-tight">
           {formatTWD(expected)}
         </p>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           起始現金 + 累計收入 − 累計消費 − 累計投資
         </p>
       </section>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <div className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
         <p className="font-medium">對帳前先確認信用卡</p>
         <p className="mt-1 text-xs">
           刷卡當下系統就扣了，但銀行要到繳費才扣。所以平常你的銀行餘額會比上面的數字高，高出的部分就是還沒繳的卡費——那不是錯誤。
@@ -79,10 +79,10 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
       </div>
 
       <div>
-        <label htmlFor="actual" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="actual" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           實際餘額
         </label>
-        <p className="mt-0.5 text-xs text-slate-400">
+        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
           銀行帳戶 + 現金 + 電子支付餘額的總和（不含投資）
         </p>
         <input
@@ -92,14 +92,14 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
           placeholder="例如 108000"
           value={actual}
           onChange={(e) => setActual(e.target.value)}
-          className="tabular mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900"
+          className="tabular mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-base outline-none focus:border-slate-900"
         />
       </div>
 
       {preview && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
           {preview.direction === "NONE" ? (
-            <p className="text-sm text-emerald-700">
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
               差額 {formatTWD(preview.difference.abs())}，小於 1 元不需要調整。
             </p>
           ) : (
@@ -109,15 +109,15 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
                 <span
                   className={
                     preview.direction === "EXPENSE"
-                      ? "font-semibold text-red-600"
-                      : "font-semibold text-emerald-600"
+                      ? "font-semibold text-red-600 dark:text-red-400"
+                      : "font-semibold text-emerald-600 dark:text-emerald-400"
                   }
                 >
                   {preview.difference.isNegative() ? "−" : "+"}
                   {formatTWD(preview.amount)}
                 </span>
               </p>
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 {preview.direction === "EXPENSE"
                   ? `會建立一筆「差額調整」支出 ${formatTWD(preview.amount)}——代表有花掉但沒記到的錢。它會計入本月消費，儲蓄率會跟著下降。`
                   : `會建立一筆「差額調整」收入 ${formatTWD(preview.amount)}——代表有進帳沒記到，或某筆支出記多了。`}
@@ -128,8 +128,8 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
       )}
 
       <div>
-        <label htmlFor="note" className="block text-sm font-medium text-slate-700">
-          備註<span className="ml-1 text-slate-400">（選填）</span>
+        <label htmlFor="note" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+          備註<span className="ml-1 text-slate-400 dark:text-slate-500">（選填）</span>
         </label>
         <input
           id="note"
@@ -137,18 +137,18 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
           placeholder="例如：8 月對帳，漏記了幾筆便利商店"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900"
+          className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-base outline-none focus:border-slate-900"
         />
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}
 
       {done && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-lg bg-emerald-50 dark:bg-emerald-950 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
           已建立調整交易，現金已經跟你輸入的餘額一致。
         </p>
       )}
@@ -156,12 +156,12 @@ export default function ReconcileForm({ expected, onAdjust }: Props) {
       <button
         type="submit"
         disabled={isPending || !preview || preview.direction === "NONE"}
-        className="w-full rounded-xl bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-40"
+        className="w-full rounded-xl bg-slate-900 dark:bg-slate-100 py-3 text-base font-medium text-white dark:text-slate-900 disabled:opacity-40"
       >
         {isPending ? "建立中…" : "建立調整交易"}
       </button>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         調整會留下一筆看得見的交易，不是偷偷改設定。三個月後你還能在交易列表找到它，知道當時發生過什麼事。
       </p>
     </form>

@@ -17,10 +17,10 @@ export default function Loading() {
         <SkeletonHeader />
 
         {/* 每日可用額度（深色主視覺） */}
-        <div className="rounded-2xl bg-slate-900 px-5 py-6">
-          <SkeletonBar className="h-4 w-40 bg-slate-700" />
-          <SkeletonBar className="mt-3 h-11 w-52 bg-slate-700" />
-          <SkeletonBar className="mt-3 h-4 w-56 bg-slate-800" />
+        <div className="rounded-2xl bg-slate-900 dark:bg-slate-800 px-5 py-6">
+          <SkeletonBar className="h-4 w-40 bg-slate-700 dark:bg-slate-700" />
+          <SkeletonBar className="mt-3 h-11 w-52 bg-slate-700 dark:bg-slate-700" />
+          <SkeletonBar className="mt-3 h-4 w-56 bg-slate-800 dark:bg-slate-700" />
         </div>
 
         {/* 儲蓄率 */}
@@ -32,7 +32,7 @@ export default function Loading() {
         </SkeletonCard>
 
         {/* 收入 / 消費 / 結餘 */}
-        <div className="grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+        <div className="grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4">
           {[0, 1, 2].map((i) => (
             <div key={i}>
               <SkeletonBar className="h-3 w-10" />
@@ -60,7 +60,7 @@ export default function Loading() {
         <SkeletonCard>
           <SkeletonBar className="h-4 w-20" />
           <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row">
-            <div className="size-44 shrink-0 rounded-full bg-slate-200" />
+            <div className="size-44 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800" />
             <div className="w-full space-y-2">
               {[0, 1, 2, 3].map((i) => (
                 <SkeletonBar key={i} className="h-4 w-full" />

@@ -12,9 +12,11 @@ import QuickAddSheet from "@/components/quick-add-sheet";
 import { readYearMonth } from "@/lib/params";
 import { summarizeMonth } from "@/lib/reports";
 import { amountFormatter } from "@/lib/money";
-import { getHideAmounts } from "@/lib/preferences";
+import { getHideAmounts, getTheme } from "@/lib/preferences";
 import { setHideAmounts } from "@/app/actions/preferences";
+import { setTheme } from "@/app/actions/theme";
 import AmountVisibilityToggle from "@/components/amount-visibility-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 import MonthSwitcher from "@/components/month-switcher";
 import BottomNav from "@/components/bottom-nav";
 import TransactionList from "@/components/transaction-list";
@@ -35,7 +37,7 @@ export default async function TransactionsPage(
     getLastUsedCategoryId(userId),
   ]);
   const summary = summarizeMonth(txs);
-  const hidden = await getHideAmounts();
+  const [hidden, theme] = await Promise.all([getHideAmounts(), getTheme()]);
   const fmt = amountFormatter(hidden);
 
   const today = todayTaipei();
@@ -56,18 +58,21 @@ export default async function TransactionsPage(
         <div className="mx-auto w-full max-w-lg pb-24">
           <header className="flex items-center justify-between">
             <MonthSwitcher ym={ym} basePath="/transactions" />
-            <AmountVisibilityToggle hidden={hidden} onToggleAction={setHideAmounts} />
+            <div className="flex items-center gap-1">
+              <ThemeToggle theme={theme} onToggleAction={setTheme} />
+              <AmountVisibilityToggle hidden={hidden} onToggleAction={setHideAmounts} />
+            </div>
           </header>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs text-slate-400">收入</p>
-              <p className="tabular mt-0.5 text-lg font-semibold text-emerald-600">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+              <p className="text-xs text-slate-400 dark:text-slate-500">收入</p>
+              <p className="tabular mt-0.5 text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                 {fmt(summary.totalIncome)}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-xs text-slate-400">支出</p>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+              <p className="text-xs text-slate-400 dark:text-slate-500">支出</p>
               <p className="tabular mt-0.5 text-lg font-semibold">
                 {fmt(summary.totalExpense)}
               </p>

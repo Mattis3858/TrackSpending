@@ -13,7 +13,7 @@ export default function MonthSwitcher({
       <Link
         href={`${basePath}?m=${addMonths(ym, -1)}`}
         aria-label="上個月"
-        className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+        className="rounded-lg px-2 py-1 text-slate-400 dark:text-slate-500 hover:bg-slate-200/60 hover:text-slate-700"
       >
         ‹
       </Link>
@@ -23,7 +23,7 @@ export default function MonthSwitcher({
       <Link
         href={`${basePath}?m=${addMonths(ym, 1)}`}
         aria-label="下個月"
-        className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+        className="rounded-lg px-2 py-1 text-slate-400 dark:text-slate-500 hover:bg-slate-200/60 hover:text-slate-700"
       >
         ›
       </Link>

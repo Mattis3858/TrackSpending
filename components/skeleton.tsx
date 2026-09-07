@@ -6,7 +6,7 @@
  */
 
 export function SkeletonBar({ className = "" }: { className?: string }) {
-  return <div className={`rounded bg-slate-200 ${className}`} />;
+  return <div className={`rounded bg-slate-200 dark:bg-slate-800 ${className}`} />;
 }
 
 export function SkeletonCard({
@@ -18,7 +18,7 @@ export function SkeletonCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-slate-200 bg-white px-5 py-4 ${className}`}
+      className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 ${className}`}
     >
       {children}
     </div>

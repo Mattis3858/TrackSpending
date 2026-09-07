@@ -65,7 +65,7 @@ export default function AmountVisibilityToggle({ hidden, onToggleAction }: Props
       aria-pressed={hidden}
       aria-label={hidden ? "顯示金額" : "隱藏金額"}
       title={hidden ? "顯示金額" : "隱藏金額"}
-      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-700 disabled:opacity-50"
+      className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 transition-colors hover:bg-slate-200/60 hover:text-slate-700 disabled:opacity-50"
     >
       {hidden ? <EyeOffIcon /> : <EyeIcon />}
     </button>

@@ -170,18 +170,18 @@ export default function ReminderToggle({
   const body = () => {
     switch (state) {
       case "loading":
-        return <p className="text-sm text-slate-400">檢查中…</p>;
+        return <p className="text-sm text-slate-400 dark:text-slate-500">檢查中…</p>;
 
       case "unsupported":
         return (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             這個瀏覽器不支援推播通知。把網站安裝成應用程式（Chrome 選單 → 安裝應用程式）之後就可以使用。
           </p>
         );
 
       case "denied":
         return (
-          <p className="text-sm text-amber-700">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
             通知權限已被封鎖。到瀏覽器的網站設定裡把「通知」改成允許，再回來開啟。
           </p>
         );
@@ -189,11 +189,11 @@ export default function ReminderToggle({
       case "on":
         return (
           <>
-            <p className="text-sm text-emerald-700">已開啟</p>
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">已開啟</p>
             <button
               type="button"
               onClick={disable}
-              className="mt-3 rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600"
+              className="mt-3 rounded-lg border border-slate-200 dark:border-slate-800 px-4 py-2 text-sm text-slate-600 dark:text-slate-300"
             >
               關閉提醒
             </button>
@@ -201,14 +201,14 @@ export default function ReminderToggle({
         );
 
       case "working":
-        return <p className="text-sm text-slate-400">處理中…</p>;
+        return <p className="text-sm text-slate-400 dark:text-slate-500">處理中…</p>;
 
       default:
         return (
           <button
             type="button"
             onClick={enable}
-            className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
+            className="rounded-lg bg-slate-900 dark:bg-slate-100 px-4 py-2.5 text-sm font-medium text-white dark:text-slate-900"
           >
             開啟提醒
           </button>
@@ -217,10 +217,10 @@ export default function ReminderToggle({
   };
 
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+    <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <div>
-        <h2 className="text-sm font-semibold text-slate-900">每日記帳提醒</h2>
-        <p className="mt-0.5 text-xs text-slate-400">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">每日記帳提醒</h2>
+        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
           每晚 22:00 前後固定提醒你記帳，不管當天記過沒有——晚餐和宵夜常常是漏掉的那幾筆。
         </p>
       </div>
@@ -228,12 +228,12 @@ export default function ReminderToggle({
       {body()}
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         提醒是綁定裝置的，每台想收到的手機或電腦都要各自開啟。排程不保證準點，實際大多落在 22:00–23:00 之間。
       </p>
     </section>

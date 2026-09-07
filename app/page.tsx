@@ -25,9 +25,11 @@ import {
 import { Suspense } from "react";
 import AssetsCard, { AssetsCardSkeleton } from "@/components/assets-card";
 import { ZERO, amountFormatter, formatPercent, money, sum } from "@/lib/money";
-import { getHideAmounts } from "@/lib/preferences";
+import { getHideAmounts, getTheme } from "@/lib/preferences";
 import { setHideAmounts } from "./actions/preferences";
+import { setTheme } from "./actions/theme";
 import AmountVisibilityToggle from "@/components/amount-visibility-toggle";
+import ThemeToggle from "@/components/theme-toggle";
 import { addDays, currentYearMonth, todayTaipei } from "@/lib/date";
 import type { TransactionInput } from "@/lib/validation";
 import { createTransaction } from "./actions/transactions";
@@ -56,10 +58,10 @@ function Card({
   note?: string;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-      <h2 className="text-sm font-medium text-slate-600">{title}</h2>
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4">
+      <h2 className="text-sm font-medium text-slate-600 dark:text-slate-300">{title}</h2>
       <div className="mt-3">{children}</div>
-      {note && <p className="mt-3 text-xs text-slate-400">{note}</p>}
+      {note && <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">{note}</p>}
     </section>
   );
 }
@@ -67,7 +69,7 @@ function Card({
 function Stat({
   label,
   value,
-  tone = "text-slate-900",
+  tone = "text-slate-900 dark:text-slate-100",
 }: {
   label: string;
   value: string;
@@ -75,7 +77,7 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
       <p className={`tabular mt-0.5 text-base font-semibold ${tone}`}>{value}</p>
     </div>
   );
@@ -112,7 +114,7 @@ export default async function HomePage(props: PageProps<"/">) {
     : initialCategories;
 
   const summary = summarizeMonth(txs);
-  const hidden = await getHideAmounts();
+  const [hidden, theme] = await Promise.all([getHideAmounts(), getTheme()]);
   const fmt = amountFormatter(hidden);
   const today = todayTaipei();
   const thisMonth = currentYearMonth();
@@ -204,11 +206,12 @@ export default async function HomePage(props: PageProps<"/">) {
           <header className="flex items-center justify-between">
             <MonthSwitcher ym={ym} basePath="/" />
             <div className="flex items-center gap-1">
+              <ThemeToggle theme={theme} onToggleAction={setTheme} />
               <AmountVisibilityToggle hidden={hidden} onToggleAction={setHideAmounts} />
               <form action={signOut}>
                 <button
                   type="submit"
-                  className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:bg-slate-200/60 hover:text-slate-700"
+                  className="rounded-lg px-2 py-1.5 text-sm text-slate-400 dark:text-slate-500 hover:bg-slate-200/60 hover:text-slate-700"
                 >
                   登出
                 </button>
@@ -217,10 +220,10 @@ export default async function HomePage(props: PageProps<"/">) {
           </header>
 
           {/* 每日可用額度：最能當場改變決策的數字，放最上面 */}
-          <section className="rounded-2xl bg-slate-900 px-5 py-6 text-white">
+          <section className="rounded-2xl bg-slate-900 dark:bg-slate-800 px-5 py-6 text-white dark:text-slate-100">
             {isCurrentMonth && pace.dailyAllowance ? (
               <>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-500">
                   接下來每天可以花（還有 {pace.remainingDays} 天）
                 </p>
                 <p className="tabular mt-1 text-5xl font-semibold tracking-tight">
@@ -228,7 +231,7 @@ export default async function HomePage(props: PageProps<"/">) {
                     ? fmt(0)
                     : fmt(pace.dailyAllowance.toFixed(0))}
                 </p>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="mt-2 text-sm text-slate-300 dark:text-slate-600">
                   {pace.overBudget
                     ? `已超出本月預算 ${fmt(pace.budgetRemaining!.abs())}`
                     : `本月預算 ${fmt(pace.budget!)}${
@@ -242,11 +245,11 @@ export default async function HomePage(props: PageProps<"/">) {
               </>
             ) : (
               <>
-                <p className="text-sm text-slate-400">儲蓄率</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">儲蓄率</p>
                 <p className="tabular mt-1 text-5xl font-semibold tracking-tight">
                   {formatPercent(summary.savingsRate)}
                 </p>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="mt-2 text-sm text-slate-300 dark:text-slate-600">
                   {summary.savingsRate === null
                     ? "這個月還沒有收入紀錄"
                     : `實際存下 ${fmt(summary.actualSaved)}`}
@@ -263,14 +266,14 @@ export default async function HomePage(props: PageProps<"/">) {
                 <span className="tabular text-3xl font-semibold">
                   {formatPercent(summary.savingsRate)}
                 </span>
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-slate-500 dark:text-slate-400">
                   實際存下 {fmt(summary.actualSaved)}
                 </span>
               </div>
 
-              <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div
-                  className="bg-emerald-500"
+                  className="bg-emerald-50 dark:bg-emerald-9500"
                   style={{ width: `${setAsidePct}%` }}
                 />
                 <div
@@ -279,9 +282,9 @@ export default async function HomePage(props: PageProps<"/">) {
                 />
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-emerald-500" />
+                  <span className="size-2 rounded-full bg-emerald-50 dark:bg-emerald-9500" />
                   已投入儲蓄／投資 {fmt(breakdown.setAside)}
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -293,17 +296,17 @@ export default async function HomePage(props: PageProps<"/">) {
           )}
 
           {/* 本月數字 */}
-          <section className="grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+          <section className="grid grid-cols-3 gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4">
             <Stat
               label="收入"
               value={fmt(summary.totalIncome)}
-              tone="text-emerald-600"
+              tone="text-emerald-600 dark:text-emerald-400"
             />
             <Stat label="消費" value={fmt(summary.consumptionExpense)} />
             <Stat
               label="結餘"
               value={fmt(summary.balance)}
-              tone={summary.balance.isNegative() ? "text-red-600" : "text-slate-900"}
+              tone={summary.balance.isNegative() ? "text-red-600 dark:text-red-400" : "text-slate-900 dark:text-slate-100"}
             />
           </section>
 
@@ -332,8 +335,8 @@ export default async function HomePage(props: PageProps<"/">) {
                   pace.projectionReliable &&
                   pace.budget &&
                   pace.projectedTotal.greaterThan(pace.budget)
-                    ? "text-red-600"
-                    : "text-slate-900"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-slate-900 dark:text-slate-100"
                 }
               />
             </div>
@@ -356,14 +359,14 @@ export default async function HomePage(props: PageProps<"/">) {
               <p
                 className={
                   buffer.projectionReliable && buffer.buffer.isNegative()
-                    ? "tabular text-3xl font-semibold text-red-600"
+                    ? "tabular text-3xl font-semibold text-red-600 dark:text-red-400"
                     : "tabular text-3xl font-semibold"
                 }
               >
                 {buffer.projectionReliable ? fmt(buffer.buffer.toFixed(0)) : "—"}
               </p>
 
-              <div className="mt-3 space-y-1 text-xs text-slate-500">
+              <div className="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <p className="tabular">
                   {setting.monthlyBudget ? "月預算" : "收入"} {fmt(buffer.income)} − 固定支出{" "}
                   {fmt(buffer.fixed)} − 預估變動消費{" "}
@@ -402,7 +405,7 @@ export default async function HomePage(props: PageProps<"/">) {
 
           <Link
             href={`/transactions?m=${ym}`}
-            className="block rounded-xl border border-slate-300 bg-white px-4 py-3 text-center text-base font-medium text-slate-700 hover:bg-slate-50"
+            className="block rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-center text-base font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50"
           >
             交易明細
           </Link>

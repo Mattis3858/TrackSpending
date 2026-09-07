@@ -48,7 +48,7 @@ export default function TransactionList({
 
   if (txs.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
         這個月還沒有任何紀錄
       </div>
     );
@@ -57,17 +57,17 @@ export default function TransactionList({
   return (
     <div className="space-y-5">
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}
 
       {groupByDate(txs).map(([date, list]) => (
         <section key={date}>
-          <h2 className="px-1 pb-1.5 text-xs font-medium text-slate-400">
+          <h2 className="px-1 pb-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
             {formatDateLabel(date)}
           </h2>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             {list.map((tx) => {
               const confirming = confirmId === tx.id;
               const busy = busyId === tx.id;
@@ -77,7 +77,7 @@ export default function TransactionList({
                   {confirming ? (
                     // 確認列：直接就地確認，不跳系統對話框
                     <div className="flex flex-1 items-center gap-2 px-4 py-3">
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-500">
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-500 dark:text-slate-400">
                         刪除「{tx.category?.name ?? "未分類"}
                         {" "}
                         {fmt(tx.amount)}」？
@@ -86,7 +86,7 @@ export default function TransactionList({
                         type="button"
                         onClick={() => setConfirmId(null)}
                         disabled={busy}
-                        className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600"
+                        className="shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300"
                       >
                         取消
                       </button>
@@ -94,7 +94,7 @@ export default function TransactionList({
                         type="button"
                         onClick={() => remove(tx.id)}
                         disabled={busy}
-                        className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+                        className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white dark:text-slate-900 disabled:opacity-50"
                       >
                         {busy ? "刪除中…" : "刪除"}
                       </button>
@@ -115,7 +115,7 @@ export default function TransactionList({
                             {tx.category?.name ?? "未分類"}
                           </span>
                           {tx.note && (
-                            <span className="block truncate text-xs text-slate-400">
+                            <span className="block truncate text-xs text-slate-400 dark:text-slate-500">
                               {tx.note}
                             </span>
                           )}
@@ -123,8 +123,8 @@ export default function TransactionList({
                         <span
                           className={
                             tx.type === "INCOME"
-                              ? "tabular shrink-0 text-sm font-semibold text-emerald-600"
-                              : "tabular shrink-0 text-sm font-semibold text-slate-900"
+                              ? "tabular shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+                              : "tabular shrink-0 text-sm font-semibold text-slate-900 dark:text-slate-100"
                           }
                         >
                           {hidden ? "" : tx.type === "INCOME" ? "+" : "−"}
@@ -136,7 +136,7 @@ export default function TransactionList({
                         type="button"
                         onClick={() => setConfirmId(tx.id)}
                         aria-label="刪除這筆交易"
-                        className="shrink-0 px-3 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="shrink-0 px-3 text-slate-300 dark:text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
                       >
                         ✕
                       </button>

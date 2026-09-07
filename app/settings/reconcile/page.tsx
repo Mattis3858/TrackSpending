@@ -40,12 +40,12 @@ export default async function ReconcilePage() {
         <div className="mx-auto w-full max-w-lg pb-8">
           <header className="flex items-center justify-between">
             <h1 className="text-xl font-semibold tracking-tight">對帳</h1>
-            <Link href="/settings" className="text-sm text-slate-500 hover:text-slate-900">
+            <Link href="/settings" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900">
               設定
             </Link>
           </header>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             漏記或記錯難免發生。輸入實際餘額，系統會補一筆調整讓兩邊一致。
           </p>
 

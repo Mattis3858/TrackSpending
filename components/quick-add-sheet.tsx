@@ -152,14 +152,14 @@ export default function QuickAddSheet({
         type="button"
         onClick={openSheet}
         aria-label="快速記帳"
-        className="fixed bottom-20 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-slate-900 text-3xl font-light text-white shadow-lg shadow-slate-900/25 transition-transform active:scale-95"
+        className="fixed bottom-20 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-slate-900 dark:bg-slate-100 text-3xl font-light text-white dark:text-slate-900 shadow-lg shadow-slate-900/25 transition-transform active:scale-95"
       >
         ＋
       </button>
 
       {saved && (
         <div className="pointer-events-none fixed inset-x-0 bottom-32 z-50 flex justify-center">
-          <span className="rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+          <span className="rounded-full bg-slate-900 dark:bg-slate-100 px-4 py-2 text-sm text-white dark:text-slate-900 shadow-lg">
             已記錄
           </span>
         </div>
@@ -180,7 +180,7 @@ export default function QuickAddSheet({
           <form
             onSubmit={submit}
             className={
-              "absolute inset-x-0 bottom-0 mx-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl " +
+              "absolute inset-x-0 bottom-0 mx-auto max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 p-5 shadow-2xl " +
               // 系統開啟「減少動態效果」時只淡入淡出、不做位移。
               // 減少動態的意思是避免大幅移動，不是完全不要過渡——
               // 直接 transition-none 會變成瞬間出現，比滑動更突兀。
@@ -192,7 +192,7 @@ export default function QuickAddSheet({
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
 
             {/* 類型 */}
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
               {(["EXPENSE", "INCOME"] as const).map((t) => (
                 <button
                   key={t}
@@ -200,8 +200,8 @@ export default function QuickAddSheet({
                   onClick={() => switchType(t)}
                   className={
                     type === t
-                      ? "rounded-lg bg-white py-2 text-sm font-medium shadow-sm"
-                      : "rounded-lg py-2 text-sm text-slate-500"
+                      ? "rounded-lg bg-white dark:bg-slate-900 py-2 text-sm font-medium shadow-sm"
+                      : "rounded-lg py-2 text-sm text-slate-500 dark:text-slate-400"
                   }
                 >
                   {t === "EXPENSE" ? "支出" : "收入"}
@@ -211,7 +211,7 @@ export default function QuickAddSheet({
 
             {/* 金額 */}
             <div className="mt-5 flex items-baseline gap-2">
-              <span className="text-2xl text-slate-400">NT$</span>
+              <span className="text-2xl text-slate-400 dark:text-slate-500">NT$</span>
               <input
                 ref={amountRef}
                 type="text"
@@ -220,7 +220,7 @@ export default function QuickAddSheet({
                 autoComplete="off"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="tabular w-full min-w-0 border-b-2 border-slate-200 bg-transparent pb-1 text-4xl font-semibold outline-none focus:border-slate-900"
+                className="tabular w-full min-w-0 border-b-2 border-slate-200 dark:border-slate-800 bg-transparent pb-1 text-4xl font-semibold outline-none focus:border-slate-900"
               />
             </div>
 
@@ -233,8 +233,8 @@ export default function QuickAddSheet({
                   onClick={() => setCategoryId(c.id)}
                   className={
                     c.id === categoryId
-                      ? "flex items-center justify-center gap-1.5 rounded-xl border border-slate-900 bg-slate-900 px-2 py-3 text-sm text-white"
-                      : "flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-3 text-sm text-slate-700 active:bg-slate-50"
+                      ? "flex items-center justify-center gap-1.5 rounded-xl border border-slate-900 dark:border-slate-100 bg-slate-900 dark:bg-slate-100 px-2 py-3 text-sm text-white dark:text-slate-900"
+                      : "flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-3 text-sm text-slate-700 dark:text-slate-300 active:bg-slate-50"
                   }
                 >
                   <span
@@ -250,7 +250,7 @@ export default function QuickAddSheet({
                 <button
                   type="button"
                   onClick={() => setShowAll(true)}
-                  className="rounded-xl border border-dashed border-slate-300 px-2 py-3 text-sm text-slate-500"
+                  className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 px-2 py-3 text-sm text-slate-500 dark:text-slate-400"
                 >
                   更多
                 </button>
@@ -269,8 +269,8 @@ export default function QuickAddSheet({
                   onClick={() => setDate(d.value)}
                   className={
                     date === d.value
-                      ? "rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white"
-                      : "rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600"
+                      ? "rounded-lg bg-slate-900 dark:bg-slate-100 px-3 py-1.5 text-sm text-white dark:text-slate-900"
+                      : "rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300"
                   }
                 >
                   {d.label}
@@ -280,7 +280,7 @@ export default function QuickAddSheet({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="tabular ml-auto rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-600"
+                className="tabular ml-auto rounded-lg border border-slate-200 dark:border-slate-800 px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300"
               />
             </div>
 
@@ -289,13 +289,13 @@ export default function QuickAddSheet({
               placeholder="備註（選填）"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-base outline-none focus:border-slate-900"
+              className="mt-3 w-full rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2.5 text-base outline-none focus:border-slate-900"
             />
 
             {error && (
               <p
                 role="alert"
-                className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="mt-3 rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400"
               >
                 {error}
               </p>
@@ -305,14 +305,14 @@ export default function QuickAddSheet({
               <button
                 type="button"
                 onClick={close}
-                className="rounded-xl border border-slate-200 px-5 py-3.5 text-base text-slate-600"
+                className="rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3.5 text-base text-slate-600 dark:text-slate-300"
               >
                 取消
               </button>
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="flex-1 rounded-xl bg-slate-900 py-3.5 text-base font-medium text-white disabled:opacity-40"
+                className="flex-1 rounded-xl bg-slate-900 dark:bg-slate-100 py-3.5 text-base font-medium text-white dark:text-slate-900 disabled:opacity-40"
               >
                 {pending ? "儲存中…" : "儲存"}
               </button>

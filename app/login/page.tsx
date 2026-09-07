@@ -8,7 +8,7 @@ export default function LoginPage() {
     <main className="flex-1 flex items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">記帳</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           登入後開始記錄每月收支
         </p>
 

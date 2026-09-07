@@ -39,15 +39,15 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
-      {hint && <p className="mt-0.5 text-xs text-slate-400">{hint}</p>}
+      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
+      {hint && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
       <div className="mt-1.5">{children}</div>
     </div>
   );
 }
 
 const inputClass =
-  "tabular w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900";
+  "tabular w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-base outline-none focus:border-slate-900";
 
 export default function SettingsForm({
   setting,
@@ -99,10 +99,10 @@ export default function SettingsForm({
   return (
     <form onSubmit={submit} className="space-y-6">
 
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+      <section className="space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">預算與目標</h2>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">預算與目標</h2>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
             「每日可用額度」需要一個消費預算。兩個都填的話以月預算優先。
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function SettingsForm({
       </section>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}
@@ -155,11 +155,11 @@ export default function SettingsForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 rounded-xl bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-xl bg-slate-900 dark:bg-slate-100 py-3 text-base font-medium text-white dark:text-slate-900 disabled:opacity-50"
         >
           {isPending ? "儲存中…" : "儲存"}
         </button>
-        {saved && <span className="text-sm text-emerald-600">已儲存</span>}
+        {saved && <span className="text-sm text-emerald-600 dark:text-emerald-400">已儲存</span>}
       </div>
 
       {/* 提醒開關與各項連結。排在收合區塊上方，但仍在表單內—— */}
@@ -167,7 +167,7 @@ export default function SettingsForm({
       {children}
 
       {/* 開始記帳前的資產：填一次之後幾乎不會再動，所以放最下面且預設收起來 */}
-      <section className="rounded-xl border border-slate-200 bg-white">
+      <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <button
           type="button"
           onClick={() => setStartingOpen((v) => !v)}
@@ -175,10 +175,10 @@ export default function SettingsForm({
           className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
         >
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">
+            <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
               開始記帳前的資產
             </span>
-            <span className="mt-0.5 block text-xs text-slate-400">
+            <span className="mt-0.5 block text-xs text-slate-400 dark:text-slate-500">
               {startingOpen
                 ? "系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。"
                 : `現金 ${formatTWD(setting.startingCash)}${
@@ -191,8 +191,8 @@ export default function SettingsForm({
           <span
             className={
               startingOpen
-                ? "shrink-0 rotate-180 text-slate-400 transition-transform"
-                : "shrink-0 text-slate-400 transition-transform"
+                ? "shrink-0 rotate-180 text-slate-400 dark:text-slate-500 transition-transform"
+                : "shrink-0 text-slate-400 dark:text-slate-500 transition-transform"
             }
             aria-hidden
           >
@@ -201,7 +201,7 @@ export default function SettingsForm({
         </button>
 
         {startingOpen && (
-          <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
+          <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 px-4 pb-4 pt-4">
           <Field label="現金" hint="活存、定存、緊急備用金等隨時可動用的錢">
             <input
               type="text"
@@ -223,7 +223,7 @@ export default function SettingsForm({
             />
           </Field>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               投資部位不用填在這裡——到「持股」頁登錄，市值會用公開報價自動計算。
             </p>
 
@@ -232,7 +232,7 @@ export default function SettingsForm({
             <button
               type="submit"
               disabled={isPending}
-              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+              className="w-full rounded-lg bg-slate-900 dark:bg-slate-100 py-2.5 text-sm font-medium text-white dark:text-slate-900 disabled:opacity-50"
             >
               {isPending ? "儲存中…" : "儲存"}
             </button>

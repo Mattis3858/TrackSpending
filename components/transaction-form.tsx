@@ -89,7 +89,7 @@ export default function TransactionForm({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {/* 類型切換 */}
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/70 p-1">
         {(["EXPENSE", "INCOME"] as const).map((t) => (
           <button
             key={t}
@@ -97,8 +97,8 @@ export default function TransactionForm({
             onClick={() => switchType(t)}
             className={`rounded-lg py-2.5 text-sm font-medium transition-colors ${
               type === t
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
             }`}
           >
             {t === "EXPENSE" ? "支出" : "收入"}
@@ -108,11 +108,11 @@ export default function TransactionForm({
 
       {/* 金額 */}
       <div>
-        <label htmlFor="amount" className="block text-sm font-medium text-slate-600">
+        <label htmlFor="amount" className="block text-sm font-medium text-slate-600 dark:text-slate-300">
           金額
         </label>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-2xl text-slate-400">NT$</span>
+          <span className="text-2xl text-slate-400 dark:text-slate-500">NT$</span>
           <input
             id="amount"
             type="text"
@@ -121,17 +121,17 @@ export default function TransactionForm({
             placeholder="0"
             autoComplete="off"
             {...register("amount")}
-            className="tabular w-full min-w-0 border-b-2 border-slate-300 bg-transparent pb-1 text-4xl font-semibold outline-none focus:border-slate-900"
+            className="tabular w-full min-w-0 border-b-2 border-slate-300 dark:border-slate-700 bg-transparent pb-1 text-4xl font-semibold outline-none focus:border-slate-900"
           />
         </div>
         {errors.amount && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.amount.message}</p>
+          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.amount.message}</p>
         )}
       </div>
 
       {/* 分類 */}
       <div>
-        <span className="block text-sm font-medium text-slate-600">分類</span>
+        <span className="block text-sm font-medium text-slate-600 dark:text-slate-300">分類</span>
         <input type="hidden" {...register("categoryId")} />
         <div className="mt-2 grid grid-cols-3 gap-2">
           {visibleCategories.map((c) => {
@@ -143,8 +143,8 @@ export default function TransactionForm({
                 onClick={() => setValue("categoryId", c.id, { shouldValidate: true })}
                 className={`flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-sm transition-colors ${
                   selected
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                    ? "border-slate-900 dark:border-slate-100 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900"
+                    : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-400"
                 }`}
               >
                 <span
@@ -158,45 +158,45 @@ export default function TransactionForm({
           })}
         </div>
         {errors.categoryId && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.categoryId.message}</p>
+          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.categoryId.message}</p>
         )}
       </div>
 
       {/* 日期 */}
       <div>
-        <label htmlFor="date" className="block text-sm font-medium text-slate-600">
+        <label htmlFor="date" className="block text-sm font-medium text-slate-600 dark:text-slate-300">
           日期
         </label>
         <input
           id="date"
           type="date"
           {...register("date")}
-          className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900"
+          className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-base outline-none focus:border-slate-900"
         />
         {errors.date && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.date.message}</p>
+          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.date.message}</p>
         )}
       </div>
 
       {/* 備註 */}
       <div>
-        <label htmlFor="note" className="block text-sm font-medium text-slate-600">
-          備註<span className="ml-1 text-slate-400">（選填）</span>
+        <label htmlFor="note" className="block text-sm font-medium text-slate-600 dark:text-slate-300">
+          備註<span className="ml-1 text-slate-400 dark:text-slate-500">（選填）</span>
         </label>
         <input
           id="note"
           type="text"
           placeholder="例如：跟同事吃午餐"
           {...register("note")}
-          className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900"
+          className="mt-1.5 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-base outline-none focus:border-slate-900"
         />
         {errors.note && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.note.message}</p>
+          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.note.message}</p>
         )}
       </div>
 
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {formError}
         </p>
       )}
@@ -205,7 +205,7 @@ export default function TransactionForm({
         <button
           type="submit"
           disabled={isPending}
-          className="flex-1 rounded-lg bg-slate-900 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+          className="flex-1 rounded-lg bg-slate-900 dark:bg-slate-100 px-4 py-3 text-base font-medium text-white dark:text-slate-900 transition-colors hover:bg-slate-800 disabled:opacity-50"
         >
           {isPending ? "處理中…" : submitLabel}
         </button>
@@ -214,7 +214,7 @@ export default function TransactionForm({
             type="button"
             onClick={onDelete}
             disabled={isPending}
-            className="rounded-lg border border-red-300 px-4 py-3 text-base font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+            className="rounded-lg border border-red-300 dark:border-red-800 px-4 py-3 text-base font-medium text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 disabled:opacity-50"
           >
             刪除
           </button>

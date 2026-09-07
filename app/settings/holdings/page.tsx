@@ -90,19 +90,19 @@ export default async function HoldingsPage() {
         <div className="mx-auto w-full max-w-lg pb-8">
           <header className="flex items-center justify-between">
             <h1 className="text-xl font-semibold tracking-tight">持股</h1>
-            <Link href="/settings" className="text-sm text-slate-500 hover:text-slate-900">
+            <Link href="/settings" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900">
               設定
             </Link>
           </header>
 
           {rows.length > 0 && (
-            <section className="mt-5 rounded-2xl bg-slate-900 px-5 py-5 text-white">
-              <p className="text-sm text-slate-400">總市值</p>
+            <section className="mt-5 rounded-2xl bg-slate-900 dark:bg-slate-800 px-5 py-5 text-white dark:text-slate-100">
+              <p className="text-sm text-slate-400 dark:text-slate-500">總市值</p>
               <p className="tabular mt-1 text-3xl font-semibold tracking-tight">
                 {formatTWD(portfolio.totalValue)}
               </p>
               <p className="mt-2 text-sm">
-                <span className="text-slate-400">成本 {formatTWD(portfolio.totalCost)}　</span>
+                <span className="text-slate-400 dark:text-slate-500">成本 {formatTWD(portfolio.totalCost)}　</span>
                 <span className={up ? "text-emerald-400" : "text-red-400"}>
                   {up ? "+" : ""}
                   {formatTWD(portfolio.totalGain)}
@@ -111,7 +111,7 @@ export default async function HoldingsPage() {
                 </span>
               </p>
 
-              <p className="mt-3 text-xs text-slate-500">
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
                 {portfolio.quoteDate
                   ? `報價日期 ${portfolio.quoteDate}`
                   : "目前取不到報價，市值以成本顯示"}
@@ -120,7 +120,7 @@ export default async function HoldingsPage() {
                 {portfolio.usdToTwd &&
                   `　·　美元匯率 ${portfolio.usdToTwd.toFixed(3)}`}
               </p>
-              <p className="mt-1.5 text-xs text-slate-600">
+              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
                 這是<strong>收盤價</strong>，不是盤中即時報價。證交所要等當日收盤結算後才發布，
                 所以盤中或假日看到的會是上一個交易日的價格。
               </p>
@@ -128,14 +128,14 @@ export default async function HoldingsPage() {
           )}
 
           {portfolio.missingFx > 0 && (
-            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
               取不到美元匯率，{portfolio.missingFx} 檔美股部位暫時無法併入台幣合計，
               下方仍以美元顯示。
             </p>
           )}
 
           {book.failed.length > 0 && (
-            <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
               {book.failed.join("、")} 的報價來源暫時無法連線，這些股票的市值先以成本顯示。
             </p>
           )}

@@ -34,7 +34,7 @@ export default async function NewTransactionPage() {
       <div className="mx-auto w-full max-w-lg">
         <header className="flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight">記一筆</h1>
-          <Link href="/transactions" className="text-sm text-slate-500 hover:text-slate-900">
+          <Link href="/transactions" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900">
             取消
           </Link>
         </header>

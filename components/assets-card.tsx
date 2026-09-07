@@ -29,7 +29,7 @@ function Stat({
   label,
   value,
   sub,
-  tone = "text-slate-900",
+  tone = "text-slate-900 dark:text-slate-100",
 }: {
   label: string;
   value: string;
@@ -39,9 +39,9 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
       <p className={`tabular mt-0.5 text-base font-semibold ${tone}`}>{value}</p>
-      {sub && <p className="tabular mt-0.5 text-sm text-slate-500">{sub}</p>}
+      {sub && <p className="tabular mt-0.5 text-sm text-slate-500 dark:text-slate-400">{sub}</p>}
     </div>
   );
 }
@@ -67,13 +67,13 @@ function MarketRow({
 
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
       <span className="text-right">
         <span className="tabular block text-sm font-semibold">{fmt(value)}</span>
         {gainRatio !== null && (
           <span
             className={
-              up ? "tabular block text-xs text-emerald-600" : "tabular block text-xs text-red-600"
+              up ? "tabular block text-xs text-emerald-600 dark:text-emerald-400" : "tabular block text-xs text-red-600 dark:text-red-400"
             }
           >
             {up ? "+" : ""}
@@ -159,11 +159,11 @@ export default async function AssetsCard(props: Props) {
     : true;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium text-slate-600">資產</h2>
+        <h2 className="text-sm font-medium text-slate-600 dark:text-slate-300">資產</h2>
         {portfolio?.quoteDate && (
-          <span className="text-xs text-slate-400">報價 {portfolio.quoteDate}</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">報價 {portfolio.quoteDate}</span>
         )}
       </div>
 
@@ -182,8 +182,8 @@ export default async function AssetsCard(props: Props) {
           }
           tone={
             assets.emergencyMonths !== null && assets.emergencyMonths < 3
-              ? "text-amber-600"
-              : "text-slate-900"
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-slate-900 dark:text-slate-100"
           }
         />
         <Stat
@@ -204,7 +204,7 @@ export default async function AssetsCard(props: Props) {
       {portfolio &&
         (portfolio.byCurrency.twd.count > 0 ||
           portfolio.byCurrency.usd.count > 0) && (
-          <div className="mt-4 space-y-2 rounded-xl bg-slate-50 px-4 py-3">
+          <div className="mt-4 space-y-2 rounded-xl bg-slate-50 dark:bg-slate-950 px-4 py-3">
             {portfolio.byCurrency.twd.count > 0 && (
               <MarketRow
                 label={`台股（${portfolio.byCurrency.twd.count} 檔）`}
@@ -235,7 +235,7 @@ export default async function AssetsCard(props: Props) {
         </div>
       )}
 
-      <p className="mt-3 text-xs text-slate-400">
+      <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
         {assets.emergencyMonths === null
           ? "累積一個月的消費紀錄後，就能算出緊急預備金可以撐多久。"
           : "緊急預備金只算現金，不含投資 — 真的需要用錢時不該被迫在低點賣股。"}

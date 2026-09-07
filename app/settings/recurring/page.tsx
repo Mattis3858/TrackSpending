@@ -46,12 +46,12 @@ export default async function RecurringPage() {
         <div className="mx-auto w-full max-w-lg pb-8">
           <header className="flex items-center justify-between">
             <h1 className="text-xl font-semibold tracking-tight">固定支出</h1>
-            <Link href="/settings" className="text-sm text-slate-500 hover:text-slate-900">
+            <Link href="/settings" className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900">
               設定
             </Link>
           </header>
 
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             每月跑不掉的支出。登錄之後，月初的「每日可用額度」就不會把房租那筆錢算成可以花的。
           </p>
 

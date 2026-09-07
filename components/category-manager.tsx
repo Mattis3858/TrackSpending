@@ -42,9 +42,9 @@ const PALETTE = [
 
 const KIND_BADGE: Record<CategoryKind, string> = {
   VARIABLE: "",
-  FIXED: "bg-indigo-50 text-indigo-700",
-  SAVINGS: "bg-emerald-50 text-emerald-700",
-  INVESTMENT: "bg-teal-50 text-teal-700",
+  FIXED: "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300",
+  SAVINGS: "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400",
+  INVESTMENT: "bg-teal-50 dark:bg-teal-950 text-teal-700 dark:text-teal-300",
 };
 
 export default function CategoryManager({
@@ -114,11 +114,11 @@ export default function CategoryManager({
     <div className="space-y-6">
       <form
         onSubmit={submitNew}
-        className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+        className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
       >
-        <p className="text-sm font-medium text-slate-600">新增分類</p>
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">新增分類</p>
 
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
           {(["EXPENSE", "INCOME"] as const).map((t) => (
             <button
               key={t}
@@ -126,8 +126,8 @@ export default function CategoryManager({
               onClick={() => setNewType(t)}
               className={
                 newType === t
-                  ? "rounded-md bg-white py-1.5 text-sm font-medium shadow-sm"
-                  : "rounded-md py-1.5 text-sm text-slate-500"
+                  ? "rounded-md bg-white dark:bg-slate-900 py-1.5 text-sm font-medium shadow-sm"
+                  : "rounded-md py-1.5 text-sm text-slate-500 dark:text-slate-400"
               }
             >
               {t === "EXPENSE" ? "支出" : "收入"}
@@ -140,7 +140,7 @@ export default function CategoryManager({
           onChange={(e) => setNewName(e.target.value)}
           placeholder="分類名稱"
           maxLength={20}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-slate-900"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-base outline-none focus:border-slate-900"
         />
 
         <div className="flex flex-wrap gap-2">
@@ -152,7 +152,7 @@ export default function CategoryManager({
               onClick={() => setNewColor(c)}
               className={
                 newColor === c
-                  ? "size-7 rounded-full ring-2 ring-slate-900 ring-offset-2"
+                  ? "size-7 rounded-full ring-2 ring-slate-900 dark:ring-slate-100 ring-offset-2"
                   : "size-7 rounded-full"
               }
               style={{ backgroundColor: c }}
@@ -162,7 +162,7 @@ export default function CategoryManager({
 
         {newType === "EXPENSE" && (
           <div className="space-y-2">
-            <span className="block text-sm text-slate-600">性質</span>
+            <span className="block text-sm text-slate-600 dark:text-slate-300">性質</span>
             <div className="grid grid-cols-2 gap-2">
               {CATEGORY_KINDS.map((k) => (
                 <button
@@ -171,29 +171,29 @@ export default function CategoryManager({
                   onClick={() => setNewKind(k)}
                   className={
                     newKind === k
-                      ? "rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-sm text-white"
-                      : "rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                      ? "rounded-lg border border-slate-900 dark:border-slate-100 bg-slate-900 dark:bg-slate-100 px-3 py-2 text-sm text-white dark:text-slate-900"
+                      : "rounded-lg border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm text-slate-600 dark:text-slate-300"
                   }
                 >
                   {KIND_LABEL[k]}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-400">{KIND_HINT[newKind]}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{KIND_HINT[newKind]}</p>
           </div>
         )}
 
         <button
           type="submit"
           disabled={isPending || !newName.trim()}
-          className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-slate-900 dark:bg-slate-100 py-2.5 text-sm font-medium text-white dark:text-slate-900 disabled:opacity-50"
         >
           新增
         </button>
       </form>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-700 dark:text-red-400">
           {error}
         </p>
       )}
@@ -203,10 +203,10 @@ export default function CategoryManager({
         if (list.length === 0) return null;
         return (
           <section key={g.type}>
-            <h2 className="px-1 pb-1.5 text-xs font-medium text-slate-400">
+            <h2 className="px-1 pb-1.5 text-xs font-medium text-slate-400 dark:text-slate-500">
               {g.label}
             </h2>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               {list.map((c) => (
                 <li
                   key={c.id}
@@ -230,7 +230,7 @@ export default function CategoryManager({
                         </span>
                       )}
                       {c.archived && (
-                        <span className="ml-2 text-xs text-slate-400">已封存</span>
+                        <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">已封存</span>
                       )}
                     </span>
 
@@ -238,7 +238,7 @@ export default function CategoryManager({
                       type="button"
                       onClick={() => rename(c)}
                       disabled={isPending}
-                      className="shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                      className="shrink-0 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900"
                     >
                       改名
                     </button>
@@ -248,7 +248,7 @@ export default function CategoryManager({
                         type="button"
                         onClick={() => run(() => onArchive(c.id, !c.archived))}
                         disabled={isPending}
-                        className="shrink-0 text-xs text-slate-500 hover:text-slate-900"
+                        className="shrink-0 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900"
                       >
                         {c.archived ? "復原" : "封存"}
                       </button>
@@ -259,7 +259,7 @@ export default function CategoryManager({
                     <div className="mt-2 flex items-center gap-2 pl-6">
                       <label
                         htmlFor={"kind-" + c.id}
-                        className="text-xs text-slate-400"
+                        className="text-xs text-slate-400 dark:text-slate-500"
                       >
                         性質
                       </label>
@@ -270,7 +270,7 @@ export default function CategoryManager({
                         onChange={(e) =>
                           changeKind(c, e.target.value as CategoryKind)
                         }
-                        className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600"
+                        className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-xs text-slate-600 dark:text-slate-300"
                       >
                         {CATEGORY_KINDS.map((k) => (
                           <option key={k} value={k}>
@@ -279,7 +279,7 @@ export default function CategoryManager({
                         ))}
                       </select>
                       {isSetAsideKind(c.kind) && (
-                        <span className="text-xs text-slate-400">不計入消費</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">不計入消費</span>
                       )}
                     </div>
                   )}
@@ -290,7 +290,7 @@ export default function CategoryManager({
         );
       })}
 
-      <div className="space-y-1 px-1 text-xs text-slate-400">
+      <div className="space-y-1 px-1 text-xs text-slate-400 dark:text-slate-500">
         <p>
           性質隨時可以改（例如搬家後房租變動、或想把某個分類從變動改成固定）。報表都是即時計算，改完歷史交易會跟著重新歸類。
         </p>

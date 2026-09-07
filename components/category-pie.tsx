@@ -14,7 +14,7 @@ export type PieDatum = {
 export default function CategoryPie({ data }: { data: PieDatum[] }) {
   if (data.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-400">
+      <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">
         這個月還沒有消費紀錄
       </p>
     );
@@ -51,8 +51,8 @@ export default function CategoryPie({ data }: { data: PieDatum[] }) {
               style={{ backgroundColor: d.color }}
               aria-hidden
             />
-            <span className="min-w-0 flex-1 truncate text-slate-600">{d.name}</span>
-            <span className="tabular shrink-0 text-slate-400">
+            <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">{d.name}</span>
+            <span className="tabular shrink-0 text-slate-400 dark:text-slate-500">
               {Math.round(d.ratio * 100)}%
             </span>
             <span className="tabular w-24 shrink-0 text-right font-medium">

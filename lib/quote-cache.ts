@@ -52,7 +52,11 @@ function rowToQuote(row: {
  * 3. 外部 API 掛掉時，**退回用過期的快取**而不是完全沒有報價
  *    ——昨天的收盤價遠比「查無報價、以成本顯示」有用
  */
-export async function getQuotes(wanted: WantedSymbol[]): Promise<QuoteBook> {
+export async function getQuotes(
+  wanted: WantedSymbol[],
+  /** 略過快取直接重抓（手動刷新用） */
+  options: { force?: boolean } = {},
+): Promise<QuoteBook> {
   if (wanted.length === 0) return { quotes: new Map(), failed: [] };
 
   const symbols = [...new Set(wanted.map((w) => w.symbol))];
@@ -61,7 +65,9 @@ export async function getQuotes(wanted: WantedSymbol[]): Promise<QuoteBook> {
   });
 
   const cutoff = Date.now() - TTL_MS;
-  const fresh = cached.filter((c) => c.fetchedAt.getTime() >= cutoff);
+  const fresh = options.force
+    ? []
+    : cached.filter((c) => c.fetchedAt.getTime() >= cutoff);
 
   if (fresh.length === symbols.length) {
     return {
@@ -118,12 +124,18 @@ export async function getQuotes(wanted: WantedSymbol[]): Promise<QuoteBook> {
 }
 
 /** 匯率同樣先讀快取，失敗時退回過期值 */
-export async function getUsdToTwd(): Promise<FxRate | null> {
+export async function getUsdToTwd(
+  options: { force?: boolean } = {},
+): Promise<FxRate | null> {
   const cached = await prisma.fxRateCache.findUnique({
     where: { pair: "USDTWD" },
   });
 
-  if (cached && cached.fetchedAt.getTime() >= Date.now() - FX_TTL_MS) {
+  if (
+    !options.force &&
+    cached &&
+    cached.fetchedAt.getTime() >= Date.now() - FX_TTL_MS
+  ) {
     return { usdToTwd: money(cached.rate), date: cached.rateDate };
   }
 

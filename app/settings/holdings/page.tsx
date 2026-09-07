@@ -10,7 +10,9 @@ import {
   lookupHoldingSymbol,
   updateHolding,
 } from "@/app/actions/holdings";
+import { refreshQuotes } from "@/app/actions/quotes";
 import BottomNav from "@/components/bottom-nav";
+import RefreshQuotesButton from "@/components/refresh-quotes-button";
 import HoldingsManager, { type HoldingRow } from "@/components/holdings-manager";
 
 export const metadata = { title: "持股 · 記帳" };
@@ -77,6 +79,10 @@ export default async function HoldingsPage() {
     "use server";
     return lookupHoldingSymbol(symbol);
   }
+  async function refresh() {
+    "use server";
+    return refreshQuotes();
+  }
 
   return (
     <>
@@ -107,12 +113,16 @@ export default async function HoldingsPage() {
 
               <p className="mt-3 text-xs text-slate-500">
                 {portfolio.quoteDate
-                  ? `報價日期 ${portfolio.quoteDate}（證交所 / 櫃買中心公開資料，每 15 分鐘更新）`
+                  ? `報價日期 ${portfolio.quoteDate}`
                   : "目前取不到報價，市值以成本顯示"}
                 {portfolio.missingQuotes > 0 &&
                   `　·　${portfolio.missingQuotes} 檔查無報價，以成本計入`}
                 {portfolio.usdToTwd &&
                   `　·　美元匯率 ${portfolio.usdToTwd.toFixed(3)}`}
+              </p>
+              <p className="mt-1.5 text-xs text-slate-600">
+                這是<strong>收盤價</strong>，不是盤中即時報價。證交所要等當日收盤結算後才發布，
+                所以盤中或假日看到的會是上一個交易日的價格。
               </p>
             </section>
           )}
@@ -130,7 +140,11 @@ export default async function HoldingsPage() {
             </p>
           )}
 
-          <div className="mt-6">
+          <div className="mt-4">
+            <RefreshQuotesButton onRefresh={refresh} />
+          </div>
+
+          <div className="mt-4">
             <HoldingsManager
               rows={rows}
               onCreate={create}

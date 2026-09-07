@@ -57,17 +57,6 @@ export default async function SettingsPage() {
 
           <div className="mt-5">
             <SettingsForm setting={setting} started={started} onSaveAction={save}>
-              {vapidPublicKey && (
-                <div className="mt-6">
-                  <ReminderToggle
-                    publicKey={vapidPublicKey}
-                    onSubscribe={subscribe}
-                    onUnsubscribe={unsubscribe}
-                    onCheck={checkSubscription}
-                  />
-                </div>
-              )}
-
               <div className="mt-6 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                 <Link
                   href="/settings/holdings"
@@ -113,6 +102,17 @@ export default async function SettingsPage() {
                   <span className="text-slate-400 dark:text-slate-500">›</span>
                 </Link>
               </div>
+
+              {vapidPublicKey && (
+                <div className="mt-6">
+                  <ReminderToggle
+                    publicKey={vapidPublicKey}
+                    onSubscribe={subscribe}
+                    onUnsubscribe={unsubscribe}
+                    onCheck={checkSubscription}
+                  />
+                </div>
+              )}
             </SettingsForm>
           </div>
         </div>

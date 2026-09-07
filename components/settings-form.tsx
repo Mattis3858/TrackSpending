@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { formatTWD, formatUSD } from "@/lib/money";
 import type { ActionResult } from "@/app/actions/transactions";
 import type { SettingsInput } from "@/lib/validation";
 import type { UserSettingDTO } from "@/lib/queries";
@@ -14,6 +15,8 @@ function trimAmount(value: string | null): string {
 
 type Props = {
   setting: UserSettingDTO;
+  /** 已經記過帳。用來決定「開始記帳前的資產」預設收合還是展開 */
+  started: boolean;
   onSaveAction: (input: SettingsInput) => Promise<ActionResult>;
 };
 
@@ -38,11 +41,13 @@ function Field({
 const inputClass =
   "tabular w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900";
 
-export default function SettingsForm({ setting, onSaveAction }: Props) {
+export default function SettingsForm({ setting, started, onSaveAction }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // 這組值填一次之後幾乎不會再動，開始記帳後就預設收起來
+  const [startingOpen, setStartingOpen] = useState(!started);
 
   const [startingCash, setStartingCash] = useState(trimAmount(setting.startingCash));
   const [cashUsd, setCashUsd] = useState(trimAmount(setting.cashUsd));
@@ -80,37 +85,6 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900">開始記帳前的資產</h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。投資部位不用填在這裡——到「持股」頁登錄，市值會用公開報價自動計算。
-          </p>
-        </div>
-
-        <Field label="現金" hint="活存、定存、緊急備用金等隨時可動用的錢">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0"
-            value={startingCash}
-            onChange={(e) => setStartingCash(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="外幣現金（美元）" hint="複委託帳戶裡還沒投入的美元餘額">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="0"
-            value={cashUsd}
-            onChange={(e) => setCashUsd(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
-
-      </section>
 
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
         <div>
@@ -163,6 +137,70 @@ export default function SettingsForm({ setting, onSaveAction }: Props) {
           {error}
         </p>
       )}
+
+      {/* 開始記帳前的資產：填一次之後幾乎不會再動，所以放最下面且預設收起來 */}
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <button
+          type="button"
+          onClick={() => setStartingOpen((v) => !v)}
+          aria-expanded={startingOpen}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-slate-900">
+              開始記帳前的資產
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-400">
+              {startingOpen
+                ? "系統只知道你開始記帳之後的收支。沒有這些數字，緊急預備金與總資產都會嚴重低估。"
+                : `現金 ${formatTWD(setting.startingCash)}${
+                    Number(setting.cashUsd) > 0
+                      ? ` · 外幣 ${formatUSD(setting.cashUsd)}`
+                      : ""
+                  }`}
+            </span>
+          </span>
+          <span
+            className={
+              startingOpen
+                ? "shrink-0 rotate-180 text-slate-400 transition-transform"
+                : "shrink-0 text-slate-400 transition-transform"
+            }
+            aria-hidden
+          >
+            ⌄
+          </span>
+        </button>
+
+        {startingOpen && (
+          <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
+          <Field label="現金" hint="活存、定存、緊急備用金等隨時可動用的錢">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={startingCash}
+              onChange={(e) => setStartingCash(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="外幣現金（美元）" hint="複委託帳戶裡還沒投入的美元餘額">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={cashUsd}
+              onChange={(e) => setCashUsd(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+
+            <p className="text-xs text-slate-400">
+              投資部位不用填在這裡——到「持股」頁登錄，市值會用公開報價自動計算。
+            </p>
+          </div>
+        )}
+      </section>
 
       <div className="flex items-center gap-3">
         <button

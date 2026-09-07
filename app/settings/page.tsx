@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
-import { getUserSetting } from "@/lib/queries";
+import { getUserSetting, hasAnyTransaction } from "@/lib/queries";
 import { saveSettings } from "@/app/actions/settings";
 import type { SettingsInput } from "@/lib/validation";
 import BottomNav from "@/components/bottom-nav";
@@ -17,7 +17,10 @@ export const metadata = { title: "設定 · 記帳" };
 
 export default async function SettingsPage() {
   const userId = await requireUserId();
-  const setting = await getUserSetting(userId);
+  const [setting, started] = await Promise.all([
+    getUserSetting(userId),
+    hasAnyTransaction(userId),
+  ]);
 
   async function save(input: SettingsInput) {
     "use server";
@@ -46,7 +49,7 @@ export default async function SettingsPage() {
           <h1 className="text-xl font-semibold tracking-tight">設定</h1>
 
           <div className="mt-5">
-            <SettingsForm setting={setting} onSaveAction={save} />
+            <SettingsForm setting={setting} started={started} onSaveAction={save} />
           </div>
 
           {vapidPublicKey && (

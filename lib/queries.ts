@@ -350,3 +350,12 @@ export async function getRecurringTemplates(
     active: r.active,
   }));
 }
+
+/** 有沒有記過任何一筆交易。用來判斷是不是還在初次設定階段 */
+export async function hasAnyTransaction(userId: string): Promise<boolean> {
+  const found = await prisma.transaction.findFirst({
+    where: { userId },
+    select: { id: true },
+  });
+  return found !== null;
+}

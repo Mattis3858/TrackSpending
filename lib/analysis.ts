@@ -517,13 +517,25 @@ export type PortfolioSummary = {
   /** 這次採用的美元匯率，沒有就是 null */
   usdToTwd: Decimal | null;
   /**
-   * 依幣別的小計，金額是**原幣別**（台股台幣、美股美元），
-   * 給「資產要分台幣與美金顯示」用。
+   * 依幣別的小計，金額是**原幣別**（台股台幣、美股美元）。
+   *
+   * 報酬率也分開算：台股與美股的表現本來就不同，混在一起看不出
+   * 哪一邊在拖累。而且美股的報酬率用原幣算才不會被匯率波動污染。
    */
   byCurrency: {
-    twd: { cost: Decimal; value: Decimal };
-    usd: { cost: Decimal; value: Decimal };
+    twd: CurrencySubtotal;
+    usd: CurrencySubtotal;
   };
+};
+
+export type CurrencySubtotal = {
+  cost: Decimal;
+  value: Decimal;
+  gain: Decimal;
+  /** 報酬率；成本為 0 時為 null */
+  gainRatio: number | null;
+  /** 這個幣別有幾檔持股 */
+  count: number;
 };
 
 export function valuePortfolio(
@@ -584,12 +596,19 @@ export function valuePortfolio(
     .sort();
 
   // 分幣別小計用原幣別金額，不換算
-  const sumBy = (currency: HoldingCurrency) => {
+  const sumBy = (currency: HoldingCurrency): CurrencySubtotal => {
     const picked = items.filter((i) => i.currency === currency);
+    const cost = picked.reduce<Decimal>((a, i) => a.plus(i.cost), ZERO);
+    // 沒報價的部位退回成本，跟台幣合計的處理一致
+    const value = picked.reduce<Decimal>((a, i) => a.plus(i.value ?? i.cost), ZERO);
+    const gain = value.minus(cost);
+
     return {
-      cost: picked.reduce<Decimal>((a, i) => a.plus(i.cost), ZERO),
-      // 沒報價的部位退回成本，跟台幣合計的處理一致
-      value: picked.reduce<Decimal>((a, i) => a.plus(i.value ?? i.cost), ZERO),
+      cost,
+      value,
+      gain,
+      gainRatio: cost.greaterThan(0) ? gain.dividedBy(cost).toNumber() : null,
+      count: picked.length,
     };
   };
 

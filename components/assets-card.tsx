@@ -3,6 +3,8 @@ import { getHoldings } from "@/lib/queries";
 import { getQuotes, getUsdToTwd } from "@/lib/quote-cache";
 import { assetSummary, valuePortfolio } from "@/lib/analysis";
 import { amountFormatter, formatPercent } from "@/lib/money";
+import { refreshQuotes } from "@/app/actions/quotes";
+import RefreshQuotesButton from "./refresh-quotes-button";
 import { SkeletonBar, SkeletonCard } from "./skeleton";
 
 /**
@@ -44,6 +46,46 @@ function Stat({
   );
 }
 
+/** 單一市場的投資部位：市值 + 損益與報酬率（都用原幣別） */
+function MarketRow({
+  label,
+  value,
+  gain,
+  gainRatio,
+  hidden,
+  currency,
+}: {
+  label: string;
+  value: string;
+  gain: string;
+  gainRatio: number | null;
+  hidden: boolean;
+  currency: "TWD" | "USD";
+}) {
+  const fmt = amountFormatter(hidden, currency);
+  const up = gainRatio === null || gainRatio >= 0;
+
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-right">
+        <span className="tabular block text-sm font-semibold">{fmt(value)}</span>
+        {gainRatio !== null && (
+          <span
+            className={
+              up ? "tabular block text-xs text-emerald-600" : "tabular block text-xs text-red-600"
+            }
+          >
+            {up ? "+" : ""}
+            {fmt(gain)}（{up ? "+" : ""}
+            {formatPercent(gainRatio, 1)}）
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 export function AssetsCardSkeleton() {
   return (
     <SkeletonCard className="animate-pulse">
@@ -63,6 +105,11 @@ export function AssetsCardSkeleton() {
 
 export default async function AssetsCard(props: Props) {
   const userId = await requireUserId();
+
+  async function refresh() {
+    "use server";
+    return refreshQuotes();
+  }
   const fmt = amountFormatter(props.hidden);
   const fmtUsd = amountFormatter(props.hidden, "USD");
 
@@ -141,12 +188,10 @@ export default async function AssetsCard(props: Props) {
         />
         <Stat
           label="投資"
-          value={fmt(assets.investmentTwd)}
-          sub={
-            assets.investmentUsd.greaterThan(0)
-              ? fmtUsd(assets.investmentUsd)
-              : null
-          }
+          value={fmt(
+            portfolio ? portfolio.totalValue : assets.investmentTwd,
+          )}
+          sub={portfolio ? "台股 + 複委託換算台幣" : null}
         />
         <Stat
           label="總資產"
@@ -155,22 +200,39 @@ export default async function AssetsCard(props: Props) {
         />
       </div>
 
-      {assets.unrealizedGain && (
-        <p className="mt-3 text-xs text-slate-400">
-          投資成本 {fmt(assets.investmentCost)}，未實現損益{" "}
-          <span className={gainUp ? "text-emerald-600" : "text-red-600"}>
-            {gainUp ? "+" : ""}
-            {fmt(assets.unrealizedGain)}
-            {assets.unrealizedGainRatio !== null && (
-              <>
-                {" ("}
-                {assets.unrealizedGainRatio > 0 ? "+" : ""}
-                {formatPercent(assets.unrealizedGainRatio, 1)}
-                {")"}
-              </>
+      {/* 台股與複委託分開顯示：兩邊的表現不同，混在一起看不出誰在拖累 */}
+      {portfolio &&
+        (portfolio.byCurrency.twd.count > 0 ||
+          portfolio.byCurrency.usd.count > 0) && (
+          <div className="mt-4 space-y-2 rounded-xl bg-slate-50 px-4 py-3">
+            {portfolio.byCurrency.twd.count > 0 && (
+              <MarketRow
+                label={`台股（${portfolio.byCurrency.twd.count} 檔）`}
+                value={portfolio.byCurrency.twd.value.toFixed(2)}
+                gain={portfolio.byCurrency.twd.gain.toFixed(2)}
+                gainRatio={portfolio.byCurrency.twd.gainRatio}
+                hidden={props.hidden}
+                currency="TWD"
+              />
             )}
-          </span>
-        </p>
+            {portfolio.byCurrency.usd.count > 0 && (
+              <MarketRow
+                label={`複委託（${portfolio.byCurrency.usd.count} 檔）`}
+                value={portfolio.byCurrency.usd.value.toFixed(2)}
+                gain={portfolio.byCurrency.usd.gain.toFixed(2)}
+                gainRatio={portfolio.byCurrency.usd.gainRatio}
+                hidden={props.hidden}
+                currency="USD"
+              />
+            )}
+          </div>
+        )}
+
+
+      {portfolio && (
+        <div className="mt-3">
+          <RefreshQuotesButton onRefresh={refresh} />
+        </div>
       )}
 
       <p className="mt-3 text-xs text-slate-400">

@@ -988,3 +988,69 @@ describe("資料太少時不做外推", () => {
     expect(p.projectionReliable).toBe(true);
   });
 });
+
+describe("valuePortfolio — 台股與複委託的報酬率分開算", () => {
+  const holdings = [
+    { symbol: "2330", name: "台積電", shares: "54", cost: "109412" },
+    { symbol: "006208", name: "富邦台50", shares: "2400", cost: "345674" },
+    { symbol: "VOO", name: "Vanguard S&P 500", shares: "1.3194", cost: "846.30", currency: "USD" as const },
+    { symbol: "GOOGL", name: "Alphabet", shares: "1.7583", cost: "580.34", currency: "USD" as const },
+  ];
+  const quotes = new Map([
+    ["2330", { price: "2410", date: "2026-09-04" }],
+    ["006208", { price: "247.25", date: "2026-09-04" }],
+    ["VOO", { price: "708.01", date: "2026-09-04" }],
+    ["GOOGL", { price: "338.46", date: "2026-09-04" }],
+  ]);
+  const FX = "31.8106";
+
+  it("台股小計用台幣，報酬率只看台股", () => {
+    const twd = valuePortfolio(holdings, quotes, FX).byCurrency.twd;
+
+    expect(twd.count).toBe(2);
+    // 54 × 2410 = 130,140；2400 × 247.25 = 593,400
+    expect(twd.value.toFixed(0)).toBe("723540");
+    expect(twd.cost.toFixed(0)).toBe("455086");
+    expect(twd.gain.toFixed(0)).toBe("268454");
+    expect(twd.gainRatio).toBeCloseTo(0.5899, 3);
+  });
+
+  it("複委託小計用美元原幣，報酬率不受匯率影響", () => {
+    const usd = valuePortfolio(holdings, quotes, FX).byCurrency.usd;
+
+    expect(usd.count).toBe(2);
+    // 1.3194 × 708.01 + 1.7583 × 338.46 = 934.15 + 595.10
+    expect(usd.value.toFixed(2)).toBe("1529.26");
+    expect(usd.cost.toFixed(2)).toBe("1426.64");
+    expect(usd.gainRatio).toBeCloseTo(0.0719, 3);
+  });
+
+  it("換不同匯率，美股的報酬率完全不變", () => {
+    const a = valuePortfolio(holdings, quotes, "31.8106").byCurrency.usd;
+    const b = valuePortfolio(holdings, quotes, "35.0000").byCurrency.usd;
+
+    expect(a.gainRatio).toBe(b.gainRatio);
+    expect(a.value.toFixed(2)).toBe(b.value.toFixed(2));
+  });
+
+  it("台幣合計仍是兩邊換算後相加", () => {
+    const p = valuePortfolio(holdings, quotes, FX);
+    // 723,540 + 1,529.25 × 31.8106 = 723,540 + 48,646
+    expect(p.totalValue.toFixed(0)).toBe("772187");
+  });
+
+  it("只有台股時，美元小計是 0 且報酬率為 null", () => {
+    const twOnly = valuePortfolio(holdings.slice(0, 2), quotes, FX);
+    expect(twOnly.byCurrency.usd.count).toBe(0);
+    expect(twOnly.byCurrency.usd.gainRatio).toBeNull();
+  });
+
+  it("查無報價的部位以成本計入小計，報酬率為 0 而不是負的", () => {
+    const partial = new Map([["2330", { price: "2410", date: "2026-09-04" }]]);
+    const twd = valuePortfolio(holdings.slice(0, 2), partial, FX).byCurrency.twd;
+
+    // 006208 沒報價，市值退回成本 345,674
+    expect(twd.value.toFixed(0)).toBe("475814"); // 130,140 + 345,674
+    expect(twd.gain.toFixed(0)).toBe("20728"); // 只有台積電的損益
+  });
+});

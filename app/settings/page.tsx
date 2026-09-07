@@ -49,64 +49,64 @@ export default async function SettingsPage() {
           <h1 className="text-xl font-semibold tracking-tight">設定</h1>
 
           <div className="mt-5">
-            <SettingsForm setting={setting} started={started} onSaveAction={save} />
-          </div>
+            <SettingsForm setting={setting} started={started} onSaveAction={save}>
+              {vapidPublicKey && (
+                <div className="mt-6">
+                  <ReminderToggle
+                    publicKey={vapidPublicKey}
+                    onSubscribe={subscribe}
+                    onUnsubscribe={unsubscribe}
+                    onCheck={checkSubscription}
+                  />
+                </div>
+              )}
 
-          {vapidPublicKey && (
-            <div className="mt-6">
-              <ReminderToggle
-                publicKey={vapidPublicKey}
-                onSubscribe={subscribe}
-                onUnsubscribe={unsubscribe}
-                onCheck={checkSubscription}
-              />
-            </div>
-          )}
-
-          <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <Link
-              href="/settings/holdings"
-              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
-            >
-              <span>
-                持股
-                <span className="block text-xs text-slate-400">
-                  登錄後投資現值自動更新
-                </span>
-              </span>
-              <span className="text-slate-400">›</span>
-            </Link>
-            <Link
-              href="/settings/recurring"
-              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
-            >
-              <span>
-                固定支出
-                <span className="block text-xs text-slate-400">
-                  房租、訂閱等每月跑不掉的支出
-                </span>
-              </span>
-              <span className="text-slate-400">›</span>
-            </Link>
-            <Link
-              href="/settings/reconcile"
-              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
-            >
-              <span>
-                對帳
-                <span className="block text-xs text-slate-400">
-                  實際餘額跟系統對不上時，補一筆調整
-                </span>
-              </span>
-              <span className="text-slate-400">›</span>
-            </Link>
-            <Link
-              href="/settings/categories"
-              className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
-            >
-              <span>分類管理</span>
-              <span className="text-slate-400">›</span>
-            </Link>
+              <div className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <Link
+                  href="/settings/holdings"
+                  className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+                >
+                  <span>
+                    持股
+                    <span className="block text-xs text-slate-400">
+                      登錄後投資現值自動更新
+                    </span>
+                  </span>
+                  <span className="text-slate-400">›</span>
+                </Link>
+                <Link
+                  href="/settings/recurring"
+                  className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+                >
+                  <span>
+                    固定支出
+                    <span className="block text-xs text-slate-400">
+                      房租、訂閱等每月跑不掉的支出
+                    </span>
+                  </span>
+                  <span className="text-slate-400">›</span>
+                </Link>
+                <Link
+                  href="/settings/reconcile"
+                  className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+                >
+                  <span>
+                    對帳
+                    <span className="block text-xs text-slate-400">
+                      實際餘額跟系統對不上時，補一筆調整
+                    </span>
+                  </span>
+                  <span className="text-slate-400">›</span>
+                </Link>
+                <Link
+                  href="/settings/categories"
+                  className="flex items-center justify-between px-4 py-3.5 text-base hover:bg-slate-50"
+                >
+                  <span>分類管理</span>
+                  <span className="text-slate-400">›</span>
+                </Link>
+              </div>
+            </SettingsForm>
           </div>
         </div>
       </main>

@@ -18,6 +18,14 @@ type Props = {
   /** 已經記過帳。用來決定「開始記帳前的資產」預設收合還是展開 */
   started: boolean;
   onSaveAction: (input: SettingsInput) => Promise<ActionResult>;
+  /**
+   * 插在「儲存」與「開始記帳前的資產」之間的內容（提醒開關與各項連結）。
+   *
+   * 為什麼要由外面傳進來：這些連結必須排在收合區塊上方，但收合區塊裡的
+   * 欄位屬於這張表單、要跟著一起送出，不能移到表單外面。用 children 就能
+   * 把版面順序交給頁面決定，同時保持表單完整。
+   */
+  children?: React.ReactNode;
 };
 
 function Field({
@@ -41,7 +49,12 @@ function Field({
 const inputClass =
   "tabular w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-slate-900";
 
-export default function SettingsForm({ setting, started, onSaveAction }: Props) {
+export default function SettingsForm({
+  setting,
+  started,
+  onSaveAction,
+  children,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +151,21 @@ export default function SettingsForm({ setting, started, onSaveAction }: Props) 
         </p>
       )}
 
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 rounded-xl bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-50"
+        >
+          {isPending ? "儲存中…" : "儲存"}
+        </button>
+        {saved && <span className="text-sm text-emerald-600">已儲存</span>}
+      </div>
+
+      {/* 提醒開關與各項連結。排在收合區塊上方，但仍在表單內—— */}
+      {/* 收合區塊裡的欄位要跟著這張表單一起送出，不能移到表單外面。 */}
+      {children}
+
       {/* 開始記帳前的資產：填一次之後幾乎不會再動，所以放最下面且預設收起來 */}
       <section className="rounded-xl border border-slate-200 bg-white">
         <button
@@ -198,20 +226,20 @@ export default function SettingsForm({ setting, started, onSaveAction }: Props) 
             <p className="text-xs text-slate-400">
               投資部位不用填在這裡——到「持股」頁登錄，市值會用公開報價自動計算。
             </p>
+
+            {/* 這一區在主要儲存按鈕下方，改完不該要往上滾才能存。
+                同一張表單，所以按哪一顆都會把全部欄位一起送出。 */}
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {isPending ? "儲存中…" : "儲存"}
+            </button>
           </div>
         )}
       </section>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="flex-1 rounded-xl bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-50"
-        >
-          {isPending ? "儲存中…" : "儲存"}
-        </button>
-        {saved && <span className="text-sm text-emerald-600">已儲存</span>}
-      </div>
     </form>
   );
 }

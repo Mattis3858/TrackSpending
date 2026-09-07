@@ -796,6 +796,22 @@ OPPO 的 ColorOS 對背景程序管理激進，通知可能延遲或收不到。
 
 **每日可用額度仍用消費總額**（預算本來就涵蓋固定支出），只有日均與月底預測改用變動消費。這個區別很容易寫錯，兩者的用途不同：額度問「還能花多少」、日均問「花多快」。
 
+### 深色模式的一個真實事故：@custom-variant 遺失
+
+上線後使用者回報「不管按月亮還是太陽都停在深色」，而且「設定」兩個字在底部導覽看不到（白底白字）。
+
+**根因**：`app/globals.css` 裡的 `@custom-variant dark (&:where(.dark, .dark *));` 遺失了。批次替換顏色時第一輪腳本寫壞，跑了 `git checkout -- app components` 想撤銷，但這行修改當時還沒提交，連帶被還原掉。
+
+少了這行，Tailwind v4 的 `dark:` 退化成預設行為——編譯成 `@media (prefers-color-scheme: dark)`，**完全綁定系統偏好設定，跟切換按鈕、跟 cookie 毫無關係**。使用者的系統剛好是深色偏好，所以不管點哪個按鈕、`<html>` 的 class 或 cookie 變成什麼，畫面都套用深色樣式——這就是「按哪個都停在深色」的真正原因。
+
+**用瀏覽器即時驗證，不只信任推理**：在跑起來的 dev server 上用 `javascript_tool` 動態建立帶 `bg-white/95 dark:bg-slate-900/95` 的元素，手動 toggle `<html>` 的 `dark` class，量測 `getComputedStyle`。修好前後分別測過：
+- 缺這行時，class 對計算樣式沒有任何影響（只有系統設定能改變它）
+- 補回去之後，`navChanged: true`、`activeChanged: true`——底部導覽背景從近白變近黑、作用中文字從深色變淺色
+
+**次要 bug**：底部導覽的 `bg-white/95` 沒有深色對應。批次腳本用 `(?<![-:w])light(?![-w/])` 當邊界比對，帶 `/95` 透明度後綴的類別因為後面接著 `/` 被排除掉，整條沒被處理。另外用同一批比對法補上 `bg-slate-200/60`、`bg-slate-900/40` 等所有帶透明度後綴的類別。
+
+**教訓**：批次腳本改完之後如果要用 `git checkout` 撤銷，要先確認沒有其他還沒提交的修改會被一併吃掉——尤其是設定檔（`globals.css`）這種不會被 TypeScript 或建置失敗攔下來的改動，少了它不會報錯，只會在特定條件下（使用者的系統偏好剛好是深色）才會被發現。
+
 ### 深色模式
 
 主題存在 **cookie**（`theme`），跟金額遮罩同樣的理由：伺服器端就決定 `<html class="dark">`，HTML 一送出就是對的顏色。用 localStorage 的話每次載入都會先閃一下淺色，在深色環境下特別刺眼。實測 `curl -b "theme=dark"` 回傳的 HTML 直接帶著 `class="dark ..."`。

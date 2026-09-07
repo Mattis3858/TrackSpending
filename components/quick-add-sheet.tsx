@@ -172,7 +172,7 @@ export default function QuickAddSheet({
             aria-label="關閉"
             onClick={close}
             className={
-              "absolute inset-0 bg-slate-900/40 transition-opacity duration-300 ease-out " +
+              "absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 transition-opacity duration-300 ease-out " +
               (visible ? "opacity-100" : "opacity-0")
             }
           />

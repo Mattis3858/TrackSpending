@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Theme } from "@/lib/preferences";
 
@@ -47,13 +47,28 @@ function MoonIcon() {
 export default function ThemeToggle({ theme, onToggleAction }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const dark = theme === "dark";
+
+  // 樂觀狀態：按下去立刻反應，不必等伺服器來回。
+  // null 代表「沿用伺服器傳來的值」。
+  const [optimistic, setOptimistic] = useState<Theme | null>(null);
+  const dark = (optimistic ?? theme) === "dark";
+
+  // 伺服器的值追上樂觀值之後就把樂觀值清掉，讓 prop 重新成為唯一事實來源。
+  // 少了這一步，之後從別的頁面回來時會拿著過期的樂觀值，
+  // 按鈕圖示就會跟實際主題對不上——看起來像「怎麼按都不會變」。
+  useEffect(() => {
+    if (optimistic !== null && optimistic === theme) setOptimistic(null);
+  }, [theme, optimistic]);
 
   async function toggle() {
+    const next: Theme = dark ? "light" : "dark";
+
     setPending(true);
-    // 先切換 <html> 的 class，畫面立刻反應，不必等伺服器回來
-    document.documentElement.classList.toggle("dark", !dark);
-    await onToggleAction(dark ? "light" : "dark");
+    setOptimistic(next);
+    // 同步切換 <html> 的 class，畫面立刻反應
+    document.documentElement.classList.toggle("dark", next === "dark");
+
+    await onToggleAction(next);
     // 讓伺服器端重新渲染，之後的導覽才會拿到正確的主題
     router.refresh();
     setPending(false);

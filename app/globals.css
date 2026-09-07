@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/**
+ * Tailwind v4 的深色模式：預設是跟隨系統的 prefers-color-scheme，
+ * 這裡改成由 <html class="dark"> 控制，因為主題是使用者明確選的，
+ * 而且我們用 cookie 在伺服器端就決定好（避免載入時閃一下白底）。
+ *
+ * 這行遺失過一次：批次替換顏色時跑了 git checkout -- app components
+ * 想撤銷一次寫壞的處理，連帶把這個還沒提交的修改也還原掉了。後果是
+ * dark: 退化成跟系統 prefers-color-scheme 綁定，跟切換按鈕、cookie
+ * 完全無關——使用者回報『按哪個顏色都停在深色』，根因就是這裡。
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans:
     "Inter", "Noto Sans TC", ui-sans-serif, system-ui, -apple-system,

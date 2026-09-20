@@ -6,7 +6,7 @@
  * 消費速度、每日可用額度、資產與緊急預備金、分類月變化。
  */
 
-import { daysInMonth, type YearMonth, type Ymd } from "./date";
+import { addMonths, daysInMonth, type YearMonth, type Ymd } from "./date";
 import { Decimal, ZERO, money, type MoneyInput } from "./money";
 import type { CategoryBreakdownItem } from "./reports";
 
@@ -33,7 +33,12 @@ export type MonthPace = {
   projectedTotal: Decimal;
   /** 月消費預算，沒設定就是 null */
   budget: Decimal | null;
-  /** 預算剩下多少（還含著尚未支付的固定支出） */
+  /**
+   * 上個月結轉過來的餘額（見 previousMonthCarryover）。
+   * 併入預算，讓收入斷檔的月份還能動用上個月沒花完的錢。
+   */
+  carryover: Decimal;
+  /** 預算剩下多少（已併入上月結轉，還含著尚未支付的固定支出） */
   budgetRemaining: Decimal | null;
   /** 本月還沒發生、但跑不掉的固定支出（房租、訂閱等） */
   upcomingFixed: Decimal;
@@ -73,6 +78,11 @@ export function monthPace(input: {
    */
   expectedFixed?: MoneyInput;
   budget?: MoneyInput | null;
+  /**
+   * 上個月結轉過來的餘額，通常餵 previousMonthCarryover() 的回傳值。
+   * 呼叫端負責保證非負——這裡不重新做 max(0, …) 的判斷。
+   */
+  carryover?: MoneyInput;
 }): MonthPace {
   const totalDays = daysInMonth(input.yearMonth);
   const currentMonth = input.today.slice(0, 7);
@@ -111,7 +121,11 @@ export function monthPace(input: {
     input.budget === null || input.budget === undefined
       ? null
       : money(input.budget);
-  const budgetRemaining = budget ? budget.minus(consumption) : null;
+  const carryover =
+    input.carryover === undefined ? ZERO : money(input.carryover);
+  const budgetRemaining = budget
+    ? budget.plus(carryover).minus(consumption)
+    : null;
 
   // 已經記過的固定支出不能重複扣
   const remainingFixed = expectedFixed.minus(fixedSoFar);
@@ -133,6 +147,7 @@ export function monthPace(input: {
     consumedSoFar: consumption,
     projectedTotal,
     budget,
+    carryover,
     budgetRemaining,
     upcomingFixed,
     spendableRemaining,
@@ -377,6 +392,38 @@ export function averageMonthlyFixed(
 
   const total = recent.reduce<Decimal>((acc, h) => acc.plus(h.fixed), ZERO);
   return total.dividedBy(recent.length);
+}
+
+/**
+ * 上個月結轉：如果上個月沒花完也沒投資出去，這筆錢還是現金，
+ * 這個月收入斷檔（例如剛換工作）時應該還能繼續用。
+ *
+ * carryover = max(0, 上月結餘)，上月結餘 = 收入 − 消費 − 儲蓄 − 投資。
+ *
+ * 兩個刻意的限制：
+ * 1. **只看上一個月，不累加。** 長期累積的效果已經反映在「現金」與
+ *    「緊急預備金」裡；這個數字是短期規劃用的，不是財富追蹤，
+ *    疊代下去只會讓「這個月能花多少」跟現金餘額脫節、越滾越不透明。
+ * 2. **超支不會變成負的結轉。** 上個月刷爆不該讓這個月的預算被懲罰
+ *    ——那個信號已經反映在現金餘額裡了，重複扣一次只是讓使用者
+ *    看不懂數字怎麼來的。
+ *
+ * 沒有上個月的資料時回傳 null，呼叫端當成 0 處理，不強迫顯示什麼。
+ */
+export function previousMonthCarryover(
+  history: MonthlyTotal[],
+  yearMonth: YearMonth,
+): Decimal | null {
+  const prevYm = addMonths(yearMonth, -1);
+  const prev = history.find((h) => h.yearMonth === prevYm);
+  if (!prev) return null;
+
+  const balance = prev.income
+    .minus(prev.consumption)
+    .minus(prev.savings)
+    .minus(prev.investment);
+
+  return balance.greaterThan(0) ? balance : ZERO;
 }
 
 /** 儲蓄率的拆解：存下來的錢有多少已明確投入，多少還躺在帳上 */
@@ -634,6 +681,8 @@ export function valuePortfolio(
 
 export type BufferFund = {
   income: Decimal;
+  /** 上個月結轉過來的餘額，併入這個月的收入基準（見 previousMonthCarryover） */
+  carryover: Decimal;
   /** 預估的整月固定支出 */
   fixed: Decimal;
   /** 固定支出是用歷史推估的（本月還沒記到房租之類的） */
@@ -642,7 +691,7 @@ export type BufferFund = {
   variableSoFar: Decimal;
   /** 依目前速度推估的整月變動消費 */
   variableProjected: Decimal;
-  /** 緩衝 + 娛樂資金 = 收入 − 固定支出 − 預估變動消費 */
+  /** 緩衝 + 娛樂資金 = 收入 + 上月結轉 − 固定支出 − 預估變動消費 */
   buffer: Decimal;
   /** 佔收入比例；沒有收入時為 null */
   bufferRatio: number | null;
@@ -670,10 +719,14 @@ export function bufferFund(input: {
   totalDays: number;
   /** 近期月份的固定支出參考值 */
   historicalFixed?: MoneyInput | null;
+  /** 上個月結轉過來的餘額，通常餵 previousMonthCarryover() 的回傳值 */
+  carryover?: MoneyInput;
 }): BufferFund {
   const income = money(input.income);
   const fixedSoFar = money(input.fixedSoFar);
   const variableSoFar = money(input.variableSoFar);
+  const carryover =
+    input.carryover === undefined ? ZERO : money(input.carryover);
 
   const historical =
     input.historicalFixed === null || input.historicalFixed === undefined
@@ -688,10 +741,11 @@ export function bufferFund(input: {
       ? variableSoFar.dividedBy(input.elapsedDays).times(input.totalDays)
       : ZERO;
 
-  const buffer = income.minus(fixed).minus(variableProjected);
+  const buffer = income.plus(carryover).minus(fixed).minus(variableProjected);
 
   return {
     income,
+    carryover,
     fixed,
     fixedEstimated: useHistorical,
     variableSoFar,

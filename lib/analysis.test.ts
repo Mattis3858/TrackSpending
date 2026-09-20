@@ -8,6 +8,7 @@ import {
   bufferFund,
   categoryDelta,
   monthPace,
+  previousMonthCarryover,
   savingsBreakdown,
   valuePortfolio,
   type MonthlyTotal,
@@ -126,6 +127,32 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     expect(p.budget).toBeNull();
     expect(p.dailyAllowance).toBeNull();
     expect(p.dailyAverage.greaterThan(0)).toBe(true);
+  });
+
+  it("沒傳 carryover 時當作 0，不影響既有算法", () => {
+    const p = monthPace({
+      yearMonth: "2026-08",
+      today: "2026-08-18",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
+      budget: "31000",
+    });
+    expect(p.carryover.toFixed(0)).toBe("0");
+    expect(p.budgetRemaining?.toFixed(0)).toBe("12400");
+  });
+
+  it("上月結轉會併入預算，讓每日可用額度變大", () => {
+    const p = monthPace({
+      yearMonth: "2026-08",
+      today: "2026-08-18",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
+      budget: "31000",
+      carryover: "5000",
+    });
+    // (31000 + 5000) − 18600 = 17400；17400 / 14 = 1243
+    expect(p.budgetRemaining?.toFixed(0)).toBe("17400");
+    expect(p.dailyAllowance?.toFixed(0)).toBe("1243");
   });
 });
 
@@ -669,6 +696,19 @@ describe("bufferFund — 緩衝／娛樂資金", () => {
   it("沒有收入時比例為 null，不會除以零", () => {
     expect(bufferFund({ ...base, income: "0" }).bufferRatio).toBeNull();
   });
+
+  it("沒傳 carryover 時當作 0，不影響既有算法", () => {
+    const b = bufferFund(base);
+    expect(b.carryover.toFixed(0)).toBe("0");
+    expect(b.buffer.toFixed(0)).toBe("14000");
+  });
+
+  it("上月結轉會併入緩衝，本月零收入也能靠結轉算出正的緩衝", () => {
+    const b = bufferFund({ ...base, income: "0", carryover: "40000" });
+    // 0 + 40,000 − 18,000 − 18,000 = 4,000（收入斷檔，靠上月結轉撐過固定支出）
+    expect(b.carryover.toFixed(0)).toBe("40000");
+    expect(b.buffer.toFixed(0)).toBe("4000");
+  });
 });
 
 describe("averageMonthlyFixed", () => {
@@ -691,6 +731,83 @@ describe("averageMonthlyFixed", () => {
 
   it("完全沒資料時回傳 null", () => {
     expect(averageMonthlyFixed([], "2026-08")).toBeNull();
+  });
+});
+
+describe("previousMonthCarryover — 上月結轉", () => {
+  it("上月結餘為正時原數結轉", () => {
+    const history: MonthlyTotal[] = [
+      {
+        yearMonth: "2026-08",
+        income: new Decimal(50000),
+        consumption: new Decimal(30000),
+        fixed: new Decimal(18000),
+        savings: new Decimal(5000),
+        investment: new Decimal(3000),
+      },
+    ];
+    // 50,000 − 30,000 − 5,000 − 3,000 = 12,000
+    expect(previousMonthCarryover(history, "2026-09")?.toFixed(0)).toBe(
+      "12000",
+    );
+  });
+
+  it("上月超支（結餘為負）時結轉為 0，不會倒扣這個月", () => {
+    const history: MonthlyTotal[] = [
+      {
+        yearMonth: "2026-08",
+        income: new Decimal(20000),
+        consumption: new Decimal(30000),
+        fixed: new Decimal(18000),
+        savings: new Decimal(0),
+        investment: new Decimal(0),
+      },
+    ];
+    expect(previousMonthCarryover(history, "2026-09")?.toFixed(0)).toBe("0");
+  });
+
+  it("沒有上個月的資料時回傳 null", () => {
+    expect(previousMonthCarryover([], "2026-09")).toBeNull();
+  });
+
+  it("只看上一個月，不會往前累加更早的月份", () => {
+    const history: MonthlyTotal[] = [
+      {
+        yearMonth: "2026-08",
+        income: new Decimal(50000),
+        consumption: new Decimal(50000),
+        fixed: new Decimal(20000),
+        savings: new Decimal(0),
+        investment: new Decimal(0),
+      },
+      {
+        yearMonth: "2026-07",
+        income: new Decimal(100000),
+        consumption: new Decimal(10000),
+        fixed: new Decimal(5000),
+        savings: new Decimal(0),
+        investment: new Decimal(0),
+      },
+    ];
+    // 8 月結餘為 0，就算 7 月結餘高達 90,000 也不會被撈進來
+    expect(previousMonthCarryover(history, "2026-09")?.toFixed(0)).toBe("0");
+  });
+
+  it("是看『被查詢月份』的上一個月，不是當下日期的上個月", () => {
+    const history: MonthlyTotal[] = [
+      {
+        yearMonth: "2026-02",
+        income: new Decimal(30000),
+        consumption: new Decimal(20000),
+        fixed: new Decimal(10000),
+        savings: new Decimal(0),
+        investment: new Decimal(0),
+      },
+    ];
+    // 查詢 3 月的結轉，只看 2 月，跟「今天」是幾月無關
+    expect(previousMonthCarryover(history, "2026-03")?.toFixed(0)).toBe(
+      "10000",
+    );
   });
 });
 

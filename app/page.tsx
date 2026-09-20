@@ -17,6 +17,7 @@ import {
   averageMonthlyConsumption,
   averageMonthlyFixed,
   averageMonthlyIncome,
+  previousMonthCarryover,
   budgetFromTarget,
   bufferFund,
   monthPace,
@@ -146,6 +147,11 @@ export default async function HomePage(props: PageProps<"/">) {
     ? templateFixed
     : historyFixed;
 
+  // 上個月沒花完也沒投資出去的錢，還是現金，這個月可以繼續用——
+  // 收入斷檔（剛換工作、還沒領第一份薪水）時尤其有感。只看上一個月，
+  // 不累加：長期效果已經反映在「現金」與「緊急預備金」裡了。
+  const carryover = previousMonthCarryover(history, ym) ?? ZERO;
+
   const pace = monthPace({
     yearMonth: ym,
     today,
@@ -155,6 +161,7 @@ export default async function HomePage(props: PageProps<"/">) {
     fixedSoFar: summary.fixedExpense,
     expectedFixed,
     budget,
+    carryover,
   });
 
   const avgConsumption = averageMonthlyConsumption(history, thisMonth);
@@ -171,6 +178,7 @@ export default async function HomePage(props: PageProps<"/">) {
     elapsedDays: pace.elapsedDays,
     totalDays: pace.totalDays,
     historicalFixed: expectedFixed,
+    carryover,
   });
 
   const breakdown = savingsBreakdown({
@@ -236,6 +244,10 @@ export default async function HomePage(props: PageProps<"/">) {
                     ? `已超出本月預算 ${fmt(pace.budgetRemaining!.abs())}`
                     : `本月預算 ${fmt(pace.budget!)}${
                         incomeEstimated ? "（依近期收入推估）" : ""
+                      }${
+                        pace.carryover.greaterThan(0)
+                          ? ` + 上月結餘 ${fmt(pace.carryover)}`
+                          : ""
                       }，已用 ${fmt(summary.consumptionExpense)}${
                         pace.upcomingFixed.greaterThan(0)
                           ? `，另有固定支出 ${fmt(pace.upcomingFixed)} 尚未支付`
@@ -342,8 +354,9 @@ export default async function HomePage(props: PageProps<"/">) {
             </div>
           </Card>
 
-          {/* 緩衝／娛樂資金 */}
-          {summary.totalIncome.greaterThan(0) && (
+          {/* 緩衝／娛樂資金：本月有收入，或上月結餘還沒用完時就顯示——
+              收入斷檔（剛換工作）正是結轉最有感的情境，不能因為本月零收入就藏起來 */}
+          {(summary.totalIncome.greaterThan(0) || carryover.greaterThan(0)) && (
             <Card
               title="緩衝／娛樂資金"
               note={
@@ -368,7 +381,10 @@ export default async function HomePage(props: PageProps<"/">) {
 
               <div className="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <p className="tabular">
-                  {setting.monthlyBudget ? "月預算" : "收入"} {fmt(buffer.income)} − 固定支出{" "}
+                  {setting.monthlyBudget ? "月預算" : "收入"} {fmt(buffer.income)}
+                  {buffer.carryover.greaterThan(0) &&
+                    ` + 上月結餘 ${fmt(buffer.carryover)}`}{" "}
+                  − 固定支出{" "}
                   {fmt(buffer.fixed)} − 預估變動消費{" "}
                   {buffer.projectionReliable
                     ? fmt(buffer.variableProjected.toFixed(0))

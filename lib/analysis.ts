@@ -40,13 +40,21 @@ export type MonthPace = {
   carryover: Decimal;
   /** 預算剩下多少（已併入上月結轉，還含著尚未支付的固定支出） */
   budgetRemaining: Decimal | null;
+  /** 預算剩下多少，**不含上月結轉**、只看這個月自己的收支 */
+  budgetRemainingThisMonth: Decimal | null;
   /** 本月還沒發生、但跑不掉的固定支出（房租、訂閱等） */
   upcomingFixed: Decimal;
   /** 真正可以自由花用的餘額 = 預算剩餘 − 尚未支付的固定支出 */
   spendableRemaining: Decimal | null;
   /** 接下來每天可以花多少（含今天）。沒預算或月份已結束時為 null */
   dailyAllowance: Decimal | null;
-  /** 已經超出預算 */
+  /**
+   * 接下來每天可以花多少，**不含上月結轉**、只看這個月自己的收支。
+   * 跟 dailyAllowance 一起顯示，讓使用者看得出這個月本身狀況如何，
+   * 而不是被上月結轉墊高的數字掩蓋。
+   */
+  dailyAllowanceThisMonth: Decimal | null;
+  /** 已經超出預算（依據併入結轉後的餘額判斷，那才是真正可動用的錢） */
   overBudget: boolean;
   /**
    * 月底預測是否可信。
@@ -123,8 +131,9 @@ export function monthPace(input: {
       : money(input.budget);
   const carryover =
     input.carryover === undefined ? ZERO : money(input.carryover);
-  const budgetRemaining = budget
-    ? budget.plus(carryover).minus(consumption)
+  const budgetRemainingThisMonth = budget ? budget.minus(consumption) : null;
+  const budgetRemaining = budgetRemainingThisMonth
+    ? budgetRemainingThisMonth.plus(carryover)
     : null;
 
   // 已經記過的固定支出不能重複扣
@@ -133,10 +142,17 @@ export function monthPace(input: {
   const spendableRemaining = budgetRemaining
     ? budgetRemaining.minus(upcomingFixed)
     : null;
+  const spendableRemainingThisMonth = budgetRemainingThisMonth
+    ? budgetRemainingThisMonth.minus(upcomingFixed)
+    : null;
 
   const dailyAllowance =
     spendableRemaining && remainingDays > 0
       ? spendableRemaining.dividedBy(remainingDays)
+      : null;
+  const dailyAllowanceThisMonth =
+    spendableRemainingThisMonth && remainingDays > 0
+      ? spendableRemainingThisMonth.dividedBy(remainingDays)
       : null;
 
   return {
@@ -149,9 +165,11 @@ export function monthPace(input: {
     budget,
     carryover,
     budgetRemaining,
+    budgetRemainingThisMonth,
     upcomingFixed,
     spendableRemaining,
     dailyAllowance,
+    dailyAllowanceThisMonth,
     overBudget: budgetRemaining !== null && budgetRemaining.isNegative(),
     projectionReliable: elapsedDays >= MIN_DAYS_FOR_PROJECTION,
   };
@@ -693,6 +711,8 @@ export type BufferFund = {
   variableProjected: Decimal;
   /** 緩衝 + 娛樂資金 = 收入 + 上月結轉 − 固定支出 − 預估變動消費 */
   buffer: Decimal;
+  /** 緩衝 + 娛樂資金，**不含上月結轉**、只看這個月自己的收支 */
+  bufferThisMonth: Decimal;
   /** 佔收入比例；沒有收入時為 null */
   bufferRatio: number | null;
   /** 預估變動消費是否可信（已過天數夠不夠） */
@@ -741,7 +761,8 @@ export function bufferFund(input: {
       ? variableSoFar.dividedBy(input.elapsedDays).times(input.totalDays)
       : ZERO;
 
-  const buffer = income.plus(carryover).minus(fixed).minus(variableProjected);
+  const bufferThisMonth = income.minus(fixed).minus(variableProjected);
+  const buffer = bufferThisMonth.plus(carryover);
 
   return {
     income,
@@ -751,6 +772,7 @@ export function bufferFund(input: {
     variableSoFar,
     variableProjected,
     buffer,
+    bufferThisMonth,
     bufferRatio: income.greaterThan(0)
       ? buffer.dividedBy(income).toNumber()
       : null,

@@ -154,6 +154,37 @@ describe("monthPace — 消費速度與每日可用額度", () => {
     expect(p.budgetRemaining?.toFixed(0)).toBe("17400");
     expect(p.dailyAllowance?.toFixed(0)).toBe("1243");
   });
+
+  it("ThisMonth 系列數值不含結轉，只看這個月自己的收支", () => {
+    const p = monthPace({
+      yearMonth: "2026-08",
+      today: "2026-08-18",
+      variableSoFar: "18600",
+      fixedSoFar: "0",
+      budget: "31000",
+      carryover: "5000",
+    });
+    // 31000 − 18600 = 12400；12400 / 14 = 886，跟沒有結轉時算出來的一樣
+    expect(p.budgetRemainingThisMonth?.toFixed(0)).toBe("12400");
+    expect(p.dailyAllowanceThisMonth?.toFixed(0)).toBe("886");
+    // 併入結轉後的數字要更大，兩者不是同一個值
+    expect(p.dailyAllowance?.toFixed(0)).toBe("1243");
+  });
+
+  it("這個月自己入不敷出時，ThisMonth 數值可以是負的（誠實顯示，不 clamp）", () => {
+    const p = monthPace({
+      yearMonth: "2026-08",
+      today: "2026-08-18",
+      variableSoFar: "35000",
+      fixedSoFar: "0",
+      budget: "31000",
+      carryover: "20000",
+    });
+    // 31000 − 35000 = −4000，即使靠結轉撐過（overBudget 仍是 false）
+    expect(p.budgetRemainingThisMonth?.toFixed(0)).toBe("-4000");
+    expect(p.dailyAllowanceThisMonth?.isNegative()).toBe(true);
+    expect(p.overBudget).toBe(false);
+  });
 });
 
 describe("budgetFromTarget", () => {
@@ -707,6 +738,14 @@ describe("bufferFund — 緩衝／娛樂資金", () => {
     const b = bufferFund({ ...base, income: "0", carryover: "40000" });
     // 0 + 40,000 − 18,000 − 18,000 = 4,000（收入斷檔，靠上月結轉撐過固定支出）
     expect(b.carryover.toFixed(0)).toBe("40000");
+    expect(b.buffer.toFixed(0)).toBe("4000");
+  });
+
+  it("bufferThisMonth 不含結轉，只看這個月自己的收支", () => {
+    const b = bufferFund({ ...base, income: "0", carryover: "40000" });
+    // 0 − 18,000 − 18,000 = −36,000：這個月本身完全入不敷出，
+    // 是靠上月結轉才變成正的 4,000
+    expect(b.bufferThisMonth.toFixed(0)).toBe("-36000");
     expect(b.buffer.toFixed(0)).toBe("4000");
   });
 });

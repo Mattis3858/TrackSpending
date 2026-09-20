@@ -254,6 +254,15 @@ export default async function HomePage(props: PageProps<"/">) {
                           : ""
                       }`}
                 </p>
+                {pace.carryover.greaterThan(0) &&
+                  pace.dailyAllowanceThisMonth && (
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-600">
+                      不含上月結餘，這個月本身每天可花{" "}
+                      {fmt(pace.dailyAllowanceThisMonth.toFixed(0))}
+                      {pace.dailyAllowanceThisMonth.isNegative() &&
+                        "（本月已入不敷出，靠結轉補上）"}
+                    </p>
+                  )}
               </>
             ) : (
               <>
@@ -395,6 +404,13 @@ export default async function HomePage(props: PageProps<"/">) {
                   {pace.elapsedDays > 0 &&
                     `，日均 ${fmt(buffer.variableSoFar.dividedBy(pace.elapsedDays).toFixed(0))}`}
                 </p>
+                {buffer.carryover.greaterThan(0) && (
+                  <p className="tabular">
+                    不含上月結餘，這個月本身：{fmt(buffer.bufferThisMonth.toFixed(0))}
+                    {buffer.bufferThisMonth.isNegative() &&
+                      "（本月已入不敷出，靠結轉補上）"}
+                  </p>
+                )}
               </div>
             </Card>
           )}
